@@ -22,6 +22,10 @@ TEMPLATE_REPO="https://github.com/farshidb2011/android-starter.git"
 OLD_PACKAGE="com.kalaban.farshidb2011"
 OLD_NAME="Kalaban"
 TARGET="$DEST_DIR/$PROJECT_NAME"
+OLD_PKG_PATH="${OLD_PACKAGE//.//}"
+NEW_PKG_PATH="${PACKAGE_NAME//.//}"
+OLD_NAME_LOWER=$(echo "$OLD_NAME" | tr '[:upper:]' '[:lower:]')
+NEW_NAME_LOWER=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
 
 echo "🚀 Creating project: $PROJECT_NAME"
 echo "   Package: $PACKAGE_NAME"
@@ -36,19 +40,39 @@ cd "$TARGET"
 rm -rf .git
 git init
 
-# جایگزینی package name در تمام فایل‌ها
+# جایگزینی package name / app name در سورس و بیلد
 echo "🔄 Replacing package name..."
-find . -type f \( -name "*.kt" -o -name "*.xml" -o -name "*.kts" -o -name "*.gradle" \) | while read file; do
+find . -type f \( -name "*.kt" -o -name "*.xml" -o -name "*.kts" -o -name "*.gradle" \) | while read -r file; do
     sed -i "s|$OLD_PACKAGE|$PACKAGE_NAME|g" "$file"
     sed -i "s|$OLD_NAME|$PROJECT_NAME|g" "$file"
 done
 
-# تغییر نام پوشه‌های سورس
-OLD_PATH="app/src/main/java/com/kalaban/farshidb2011"
-NEW_PATH="app/src/main/java/$(echo $PACKAGE_NAME | tr '.' '/')"
-mkdir -p "$NEW_PATH"
-cp -r "$OLD_PATH/." "$NEW_PATH/"
-rm -rf "app/src/main/java/com"
+# Makefile: APP_ID (and any other package refs) + logcat grep token
+echo "🔄 Updating Makefile..."
+sed -i "s|$OLD_PACKAGE|$PACKAGE_NAME|g" Makefile
+sed -i "s|grep -i \"$OLD_NAME_LOWER\"|grep -i \"$NEW_NAME_LOWER\"|g" Makefile
+
+# README: project name + package references for the new app
+echo "🔄 Updating README..."
+sed -i "s|$OLD_PACKAGE|$PACKAGE_NAME|g" README.md
+sed -i "s|$OLD_NAME|$PROJECT_NAME|g" README.md
+
+# جابه‌جایی پوشه‌های سورس: main + test + androidTest
+echo "🔄 Moving package directories..."
+for source_set in main test androidTest; do
+    OLD_DIR="app/src/${source_set}/java/${OLD_PKG_PATH}"
+    NEW_DIR="app/src/${source_set}/java/${NEW_PKG_PATH}"
+    if [ -d "$OLD_DIR" ]; then
+        mkdir -p "$(dirname "$NEW_DIR")"
+        if [ "$OLD_DIR" != "$NEW_DIR" ]; then
+            mkdir -p "$NEW_DIR"
+            cp -a "$OLD_DIR"/. "$NEW_DIR"/
+            rm -rf "$OLD_DIR"
+            # prune empty leftover dirs under java/ (safe: only empty)
+            find "app/src/${source_set}/java" -type d -empty -delete 2>/dev/null || true
+        fi
+    fi
+done
 
 # ساخت local.properties برای SDK
 echo "sdk.dir=$HOME/Apps/Android/Sdk" > local.properties
