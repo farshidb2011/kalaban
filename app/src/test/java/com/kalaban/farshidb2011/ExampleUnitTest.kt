@@ -1,7 +1,16 @@
 package com.kalaban.farshidb2011
 
+import com.kalaban.farshidb2011.core.JalaliDate
+import com.kalaban.farshidb2011.core.Money
 import com.kalaban.farshidb2011.core.PricingEngine
+import com.kalaban.farshidb2011.data.backup.KalabanBackupArchive
+import com.kalaban.farshidb2011.data.prefs.SecurePrefs
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExampleUnitTest {
@@ -17,6 +26,17 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun pricingEngine_handlesZeroPurchaseDollarRateSafely() {
+        val result = PricingEngine.recalculateSellPrice(
+            purchasePrice = 149.999,
+            purchaseDollarRate = 0.0,
+            newDollarRate = 50.0,
+            managerPercent = 15.0,
+        )
+        assertEquals(150.0, result, 0.0001)
+    }
+
+    @Test
     fun saleUnitPrice_appliesDollarChangeProfitAndTax() {
         // 100 * 1.1 dollarChange = 110; *1.2 profit = 132; *1.1 tax = 145.2
         val result = PricingEngine.saleUnitPrice(
@@ -26,6 +46,86 @@ class ExampleUnitTest {
             profitPercent = 20.0,
         )
         assertEquals(145.2, result, 0.0001)
+    }
+
+    @Test
+    fun saleUnitPrice_appliesInstallmentDiffForCreditSales() {
+        // Cash = 145.2; with 10% installment diff = 159.72
+        val result = PricingEngine.saleUnitPrice(
+            storedSellPrice = 100.0,
+            dollarChangePercent = 10.0,
+            taxPercent = 10.0,
+            profitPercent = 20.0,
+            installment = true,
+            installmentDiffPercent = 10.0,
+        )
+        assertEquals(159.72, result, 0.0001)
+    }
+
+    @Test
+    fun purchaseRateAfterEdit_keepsOriginalRateUnlessPriceChanges() {
+        // Editing title/stock: the stored price round-trips through the form, so the original rate stays
+        assertEquals(50.0, PricingEngine.purchaseRateAfterEdit(33.33, 50.0, 99.99 / 3, 60.0), 0.0001)
+        // Restocking at a new purchase price: today's rate applies
+        assertEquals(60.0, PricingEngine.purchaseRateAfterEdit(33.33, 50.0, 40.0, 60.0), 0.0001)
+        // Rows without a valid stored rate fall back to today's rate
+        assertEquals(60.0, PricingEngine.purchaseRateAfterEdit(33.33, 0.0, 33.33, 60.0), 0.0001)
+    }
+
+    @Test
+    fun money_roundsAndFormatsConsistently() {
+        assertEquals(12.35, Money.round(12.345), 0.0001)
+        assertEquals(0.0, Money.round(Double.NaN), 0.0001)
+        assertEquals("12.50", Money.format(12.5))
+    }
+
+    @Test
+    fun jalaliDate_validatesMonthLengthsAndRoundTrips() {
+        // Month 1..6 allow 31 days
+        assertNotNull(JalaliDate.parse("1403/06/31"))
+        // Month 7..11 allow max 30 days
+        assertNotNull(JalaliDate.parse("1403/07/30"))
+        assertNull(JalaliDate.parse("1403/07/31"))
+        // Out of range years/months
+        assertNull(JalaliDate.parse("1200/01/01"))
+        assertNull(JalaliDate.parse("1403/13/01"))
+
+        val original = JalaliDate.Date(1404, 8, 11)
+        val epoch = original.toGregorianEpochMs()
+        val roundTripped = JalaliDate.fromEpochMs(epoch)
+        assertEquals(original, roundTripped)
+    }
+
+    @Test
+    fun backupArchive_packsAndUnpacksWithImages() {
+        val meta = """{"settings":{"id":1,"dollarRate":60.0}}"""
+        val imgBytes = byteArrayOf(1, 2, 3, 4, 5)
+        val packed = KalabanBackupArchive.pack(
+            metaJson = meta,
+            images = listOf(
+                KalabanBackupArchive.ImageEntry(
+                    itemId = 42L,
+                    mime = "image/png",
+                    bytes = imgBytes,
+                ),
+            ),
+        )
+        assertTrue(KalabanBackupArchive.isKalabanArchive(packed))
+        val unpacked = KalabanBackupArchive.unpack(packed)
+        assertEquals(meta, unpacked.metaJson)
+        assertEquals(1, unpacked.images.size)
+        assertEquals(42L, unpacked.images[0].itemId)
+        assertEquals("image/png", unpacked.images[0].mime)
+        assertArrayEquals(imgBytes, unpacked.images[0].bytes)
+    }
+
+    @Test
+    fun securePrefs_hashesDeterministicWithSalt() {
+        val h1 = SecurePrefs.hash("1234", "aabbcc")
+        val h2 = SecurePrefs.hash("1234", "aabbcc")
+        val h3 = SecurePrefs.hash("1234", "ddeeff")
+        assertEquals(h1, h2)
+        assertFalse(h1 == h3)
     }
 
     @Test

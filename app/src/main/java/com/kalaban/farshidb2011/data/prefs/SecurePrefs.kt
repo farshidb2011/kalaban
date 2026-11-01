@@ -16,12 +16,22 @@ private val Context.pinStore by preferencesDataStore("kalaban_secure")
 class SecurePrefs(private val context: Context) {
     private val pinHashKey = stringPreferencesKey("admin_pin_hash")
     private val pinSaltKey = stringPreferencesKey("admin_pin_salt")
+    private val themeModeKey = stringPreferencesKey("theme_mode")
 
     /** In-memory only — unlocking must not survive process death. PIN hash stays in DataStore. */
     private val _sessionUnlocked = MutableStateFlow(false)
     val sessionUnlocked: Flow<Boolean> = _sessionUnlocked
 
     val pinHash: Flow<String?> = context.pinStore.data.map { it[pinHashKey] }
+
+    /** "system", "light", or "dark" — null if not explicitly set in DataStore yet. */
+    val themeMode: Flow<String?> = context.pinStore.data.map { it[themeModeKey] }
+
+    suspend fun setThemeMode(mode: String) {
+        context.pinStore.edit {
+            it[themeModeKey] = mode
+        }
+    }
 
     suspend fun setPin(pin: String) {
         val salt = randomSalt()

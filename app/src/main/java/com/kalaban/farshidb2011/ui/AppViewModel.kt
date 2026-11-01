@@ -37,6 +37,7 @@ data class ItemFormDraft(
     val packTotal: String = "",
     val piecesPerUnitText: String = "1",
     val stockUnits: String = "",
+    val lowStockThresholdText: String = "1",
     val sku: String = "",
     val selectedUnitId: Long? = null,
     val selectedCategoryId: Long? = null,
@@ -57,6 +58,7 @@ data class NewSaleDraft(
     val buyer: String = "",
     val credit: Boolean = false,
     val jalaliDate: String = JalaliDate.today().format(),
+    val dueDaysText: String = "7",
     val selectedItemId: Long? = null,
     val qty: String = "1",
     val unitPriceText: String = "",
@@ -92,6 +94,8 @@ class AppViewModel(
     val unlocked = secure.sessionUnlocked.stateIn(viewModelScope, keepAlive, false)
     val hasPin = secure.pinHash.map { !it.isNullOrBlank() }
         .stateIn(viewModelScope, keepAlive, false)
+    val themeMode: StateFlow<String?> = secure.themeMode
+        .stateIn(viewModelScope, keepAlive, null)
 
     private val _report = MutableStateFlow(ShopRepository.DetailedSalesReport())
     val report: StateFlow<ShopRepository.DetailedSalesReport> = _report
@@ -121,13 +125,16 @@ class AppViewModel(
 
     fun openItemForm(item: ItemEntity) {
         val pieces = item.piecesPerUnit.coerceAtLeast(1.0)
+        val threshold = item.lowStockThreshold.coerceAtLeast(0.0)
+        val thresholdStr = if (threshold % 1.0 == 0.0) threshold.toLong().toString() else Money.format(threshold)
         _itemForm.value = ItemFormDraft(
             showForm = true,
             editingId = item.id,
             title = item.title,
-            piecesPerUnitText = if (pieces == 1.0) "1" else pieces.toString(),
+            piecesPerUnitText = if (pieces == 1.0) "1" else if (pieces % 1.0 == 0.0) pieces.toLong().toString() else pieces.toString(),
             packTotal = if (item.purchasePrice == 0.0) "" else Money.format(item.purchasePrice * pieces),
             stockUnits = if (item.stockQty == 0.0) "" else Money.format(item.stockQty / pieces),
+            lowStockThresholdText = thresholdStr,
             sku = item.sku.orEmpty(),
             selectedUnitId = item.unitId,
             selectedCategoryId = item.categoryId,
@@ -160,8 +167,16 @@ class AppViewModel(
         viewModelScope.launch {
             val s = settings.value
             val pieces = piecesPerUnit.coerceAtLeast(1.0)
+            val rate = repo.getItem(id)?.let {
+                PricingEngine.purchaseRateAfterEdit(
+                    previousPurchasePrice = it.purchasePrice,
+                    previousPurchaseRate = it.purchaseDollarRate,
+                    newPurchasePrice = purchasePrice,
+                    currentDollarRate = purchaseDollarRate,
+                )
+            } ?: purchaseDollarRate
             val sell = PricingEngine.recalculateSellPrice(
-                purchasePrice, purchaseDollarRate, s.dollarRate, s.managerPercent,
+                purchasePrice, rate, s.dollarRate, s.managerPercent,
             )
             repo.upsertItem(
                 ItemEntity(
@@ -170,7 +185,7 @@ class AppViewModel(
                     unitId = unitId,
                     categoryId = categoryId,
                     purchasePrice = purchasePrice,
-                    purchaseDollarRate = purchaseDollarRate,
+                    purchaseDollarRate = rate,
                     sellPrice = sell,
                     piecesPerUnit = pieces,
                     stockQty = stockQty,
@@ -182,7 +197,26 @@ class AppViewModel(
         }
     }
 
-    fun deleteItem(id: Long) = viewModelScope.launch { repo.deleteItem(id) }
+    fun deleteItem(id: Long, onError: ((String) -> Unit)? = null) = viewModelScope.launch {
+        try {
+            repo.deleteItem(id)
+        } catch (_: Exception) {
+            onError?.invoke("in_use")
+        }
+    }
+
+    fun importAndSetItemImage(sourceUri: String) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val durableUri = repo.importImageToInternalStorage(sourceUri)
+        _itemForm.update { it.copy(imageUri = durableUri, pendingCameraUri = null) }
+    }
+
+    fun setThemeMode(mode: String) = viewModelScope.launch {
+        secure.setThemeMode(mode)
+        when (mode) {
+            "dark" -> patchSettings { it.copy(displayDarkMode = true) }
+            "light" -> patchSettings { it.copy(displayDarkMode = false) }
+        }
+    }
 
     fun saveUnit(id: Long = 0L, nameFa: String, nameEn: String) = viewModelScope.launch {
         repo.upsertUnit(
@@ -306,6 +340,12 @@ class AppViewModel(
             .onFailure { _backupMessage.value = "Export failed: ${it.message ?: it.javaClass.simpleName}" }
     }
 
+    fun exportToUri(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching { repo.exportBackupToUri(uri) }
+            .onSuccess { _backupMessage.value = "OK: ${uri.lastPathSegment ?: "kalaban-backup.kalb"}" }
+            .onFailure { _backupMessage.value = "Export failed: ${it.message ?: it.javaClass.simpleName}" }
+    }
+
     fun importFrom(file: File) = viewModelScope.launch {
         runCatching {
             repo.readBackupFile(file)
@@ -314,6 +354,18 @@ class AppViewModel(
             .onSuccess { _backupMessage.value = "Imported: ${file.name}" }
             .onFailure { _backupMessage.value = "Import failed: ${it.message ?: it.javaClass.simpleName}" }
     }
+
+    fun importFromUri(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+            repo.importBackupFromUri(uri)
+            ReminderNotifications.rescheduleAll(getApplication())
+        }
+            .onSuccess { _backupMessage.value = "Imported: ${uri.lastPathSegment ?: "backup"}" }
+            .onFailure { _backupMessage.value = "Import failed: ${it.message ?: it.javaClass.simpleName}" }
+    }
+
+    fun observeLinesForSale(saleId: Long) = repo.observeLinesForSale(saleId)
+    fun observePaymentsForSale(saleId: Long) = repo.observePaymentsForSale(saleId)
 
     fun setPin(pin: String) = viewModelScope.launch { secure.setPin(pin) }
 

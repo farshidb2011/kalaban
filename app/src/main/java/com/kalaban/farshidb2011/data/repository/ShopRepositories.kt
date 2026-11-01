@@ -78,14 +78,18 @@ class ShopRepository(
         } else {
             item.sellPrice
         }
-        return db.itemDao().upsert(
-            item.copy(
-                purchasePrice = Money.round(item.purchasePrice),
-                sellPrice = Money.round(sell),
-                updatedAtEpochMs = System.currentTimeMillis(),
-            ),
+        val normalized = item.copy(
+            purchasePrice = Money.round(item.purchasePrice),
+            sellPrice = Money.round(sell),
+            updatedAtEpochMs = System.currentTimeMillis(),
         )
+        if (normalized.id == 0L) return db.itemDao().upsert(normalized)
+        // REPLACE deletes the row first, which sale_lines' ON DELETE RESTRICT rejects for sold items.
+        db.itemDao().update(normalized)
+        return normalized.id
     }
+
+    suspend fun getItem(id: Long): ItemEntity? = db.itemDao().getById(id)
 
     suspend fun deleteItem(id: Long) = db.itemDao().delete(id)
 
@@ -96,10 +100,14 @@ class ShopRepository(
             dollarRate = Money.round(settings.dollarRate),
         )
         db.settingsDao().upsert(normalized)
-        if (previous != null && previous.dollarRate != normalized.dollarRate) {
+        val dollarChanged = previous != null && previous.dollarRate != normalized.dollarRate
+        val managerChanged = previous != null && previous.managerPercent != normalized.managerPercent
+        if (dollarChanged) {
             db.dollarRateHistoryDao().insert(
                 DollarRateHistoryEntity(rate = normalized.dollarRate, note = "settings_update"),
             )
+        }
+        if (dollarChanged || managerChanged) {
             recalculateAllPrices(normalized)
         }
     }
@@ -136,7 +144,7 @@ class ShopRepository(
         dueAtEpochMs: Long? = null,
         jalaliDate: String = JalaliDate.today().format(),
         createdAtEpochMs: Long = System.currentTimeMillis(),
-    ): Long {
+    ): Long = db.withTransaction {
         val normalizedLines = lines.map {
             it.copy(unitPrice = Money.round(it.unitPrice))
         }
@@ -170,17 +178,69 @@ class ShopRepository(
             val item = db.itemDao().getById(line.item.id) ?: return@forEach
             db.itemDao().update(item.copy(stockQty = (item.stockQty - line.quantity).coerceAtLeast(0.0)))
         }
-        return saleId
+        saleId
     }
 
-    suspend fun addPartialPayment(saleId: Long, amount: Double, note: String? = null) {
-        val sale = db.saleDao().getById(saleId) ?: return
+    suspend fun addPartialPayment(saleId: Long, amount: Double, note: String? = null) = db.withTransaction {
+        val sale = db.saleDao().getById(saleId) ?: return@withTransaction
         val pay = Money.round(amount.coerceAtMost(sale.openBalance).coerceAtLeast(0.0))
-        if (pay <= 0.0) return
+        if (pay <= 0.0) return@withTransaction
         db.salePaymentDao().insert(SalePaymentEntity(saleId = saleId, amount = pay, note = note))
         db.saleDao().update(
             sale.copy(openBalance = Money.round((sale.openBalance - pay).coerceAtLeast(0.0))),
         )
+    }
+
+    fun observeLinesForSale(saleId: Long) = db.saleLineDao().observeForSale(saleId)
+    fun observePaymentsForSale(saleId: Long) = db.salePaymentDao().observeForSale(saleId)
+
+    /**
+     * Copy an external URI (gallery or cache camera file) into durable app storage
+     * (`filesDir/item_images`) and return a FileProvider URI so images survive cache clears
+     * and temporary picker grants.
+     */
+    fun importImageToInternalStorage(sourceUri: String): String {
+        val bytes = readUriBytes(sourceUri) ?: return sourceUri
+        if (bytes.isEmpty()) return sourceUri
+        val mime = sniffImageMime(bytes)
+        val ext = when {
+            mime.contains("png", ignoreCase = true) -> "png"
+            mime.contains("webp", ignoreCase = true) -> "webp"
+            else -> "jpg"
+        }
+        val file = File(imageDir, "item_${System.currentTimeMillis()}.$ext")
+        return runCatching {
+            file.writeBytes(bytes)
+            FileProvider.getUriForFile(
+                appContext,
+                "${BuildConfig.APPLICATION_ID}.fileprovider",
+                file,
+            ).toString()
+        }.getOrDefault(sourceUri)
+    }
+
+    suspend fun exportBackupToUri(uri: Uri) {
+        val temp = File(appContext.cacheDir, "export_temp_${System.currentTimeMillis()}.kalb")
+        try {
+            writeBackupFile(temp)
+            appContext.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(temp.readBytes())
+            } ?: error("Cannot open output stream")
+        } finally {
+            temp.delete()
+        }
+    }
+
+    suspend fun importBackupFromUri(uri: Uri) {
+        val bytes = appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Cannot open input stream")
+        val temp = File(appContext.cacheDir, "import_temp_${System.currentTimeMillis()}.kalb")
+        try {
+            temp.writeBytes(bytes)
+            readBackupFile(temp)
+        } finally {
+            temp.delete()
+        }
     }
 
     suspend fun zeroBalance(saleId: Long, reason: String) {
@@ -237,7 +297,8 @@ class ShopRepository(
             ReportRange.BIANNUAL -> 182 * day
             ReportRange.YEARLY -> 365 * day
         }
-        return db.saleDao().getInRange(now - span, now)
+        // Include future-Hour timestamps on today's Jalali date (toGregorianEpochMs sets noon)
+        return db.saleDao().getInRange(now - span, now + day)
     }
 
     /**

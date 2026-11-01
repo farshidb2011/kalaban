@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
@@ -85,10 +86,13 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
     val rootNav = rememberNavController()
     val unlocked by vm.unlocked.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val themeModePref by vm.themeMode.collectAsStateWithLifecycle()
     val units by vm.units.collectAsStateWithLifecycle()
     val categories by vm.categories.collectAsStateWithLifecycle()
     val language = settings.languageTag.ifBlank { "fa" }
     var pendingAfterUnlock by remember { mutableStateOf<String?>(null) }
+
+    val effectiveThemeMode = themeModePref ?: if (settings.displayDarkMode) "dark" else "light"
 
     fun openLocked(route: String) {
         if (unlocked) {
@@ -100,7 +104,7 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
     }
 
     AppLocaleProvider(languageTag = language) {
-        KalabanTheme(darkTheme = settings.displayDarkMode, dynamicColor = false) {
+        KalabanTheme(themeMode = effectiveThemeMode, dynamicColor = false) {
             Surface(
                 color = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onBackground,
@@ -110,13 +114,17 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
                     startDestination = Routes.DISPLAY,
                 ) {
                     composable(Routes.LOCK) {
-                        LockScreen(vm) {
-                            val next = pendingAfterUnlock ?: Routes.MAIN
-                            pendingAfterUnlock = null
-                            rootNav.navigate(next) {
-                                popUpTo(Routes.LOCK) { inclusive = true }
-                            }
-                        }
+                        LockScreen(
+                            vm = vm,
+                            onBack = { rootNav.popBackStack() },
+                            onUnlocked = {
+                                val next = pendingAfterUnlock ?: Routes.MAIN
+                                pendingAfterUnlock = null
+                                rootNav.navigate(next) {
+                                    popUpTo(Routes.LOCK) { inclusive = true }
+                                }
+                            },
+                        )
                     }
                     composable(Routes.DISPLAY) {
                         DisplayPanel(
@@ -155,12 +163,16 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
                     }
                     composable(Routes.UNITS) {
                         val fa = language.startsWith("fa")
+                        var deleteErr by remember { mutableStateOf<String?>(null) }
+                        val inUseMsg = stringResource(R.string.unit_in_use)
                         SimpleNameListScreen(
                             titleRes = R.string.units,
                             names = units.map {
                                 it.id to if (fa) it.nameFa else it.nameEn
                             },
                             labelRes = R.string.unit_name,
+                            externalError = deleteErr,
+                            onClearExternalError = { deleteErr = null },
                             onBack = { rootNav.popBackStack() },
                             onAdd = { vm.saveUnit(nameFa = it, nameEn = it) },
                             onUpdate = { id, name ->
@@ -180,18 +192,25 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
                                 }
                             },
                             onDelete = { id ->
-                                vm.deleteUnit(id)
+                                deleteErr = null
+                                vm.deleteUnit(id) {
+                                    deleteErr = inUseMsg
+                                }
                             },
                         )
                     }
                     composable(Routes.CATEGORIES) {
                         val fa = language.startsWith("fa")
+                        var deleteErr by remember { mutableStateOf<String?>(null) }
+                        val inUseMsg = stringResource(R.string.category_in_use)
                         SimpleNameListScreen(
                             titleRes = R.string.categories,
                             names = categories.map {
                                 it.id to if (fa) it.nameFa else it.nameEn
                             },
                             labelRes = R.string.category_name,
+                            externalError = deleteErr,
+                            onClearExternalError = { deleteErr = null },
                             onBack = { rootNav.popBackStack() },
                             onAdd = { vm.saveCategory(nameFa = it, nameEn = it) },
                             onUpdate = { id, name ->
@@ -211,7 +230,10 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
                                 }
                             },
                             onDelete = { id ->
-                                vm.deleteCategory(id)
+                                deleteErr = null
+                                vm.deleteCategory(id) {
+                                    deleteErr = inUseMsg
+                                }
                             },
                         )
                     }
@@ -349,6 +371,7 @@ private fun RetailMainShell(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,

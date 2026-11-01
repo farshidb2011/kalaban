@@ -20,6 +20,17 @@ object PricingEngine {
         return Money.round(purchasePrice * ratio * managerFactor)
     }
 
+    /** Rate to keep on an edited item: its original purchase rate, unless a new purchase price was entered. */
+    fun purchaseRateAfterEdit(
+        previousPurchasePrice: Double,
+        previousPurchaseRate: Double,
+        newPurchasePrice: Double,
+        currentDollarRate: Double,
+    ): Double {
+        val samePurchase = Money.round(previousPurchasePrice) == Money.round(newPurchasePrice)
+        return if (samePurchase && previousPurchaseRate > 0.0) previousPurchaseRate else currentDollarRate
+    }
+
     fun installmentPrice(cashPrice: Double, installmentDiffPercent: Double): Double {
         return Money.round(cashPrice * (1.0 + installmentDiffPercent.coerceAtLeast(0.0) / 100.0))
     }

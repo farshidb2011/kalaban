@@ -80,6 +80,7 @@ import com.kalaban.farshidb2011.ui.components.retailTextFieldColors
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FilterChip
@@ -188,7 +189,11 @@ fun HomeScreen(onAdmin: () -> Unit, onDisplay: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
+fun LockScreen(
+    vm: AppViewModel,
+    onBack: (() -> Unit)? = null,
+    onUnlocked: () -> Unit,
+) {
     val context = LocalContext.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val hasPin by vm.hasPin.collectAsStateWithLifecycle()
@@ -196,6 +201,7 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
     var confirm by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf(false) }
     var mismatch by rememberSaveable { mutableStateOf(false) }
+    var tooShort by rememberSaveable { mutableStateOf(false) }
     var resetAfterBiometric by rememberSaveable { mutableStateOf(false) }
     val biometricAvailable = remember {
         androidx.biometric.BiometricManager.from(context)
@@ -211,6 +217,10 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
         else -> R.string.set_pin_once
     }
 
+    val biometricResetTitle = stringResource(R.string.forgot_pin_biometric_title)
+    val biometricUnlockTitle = stringResource(R.string.use_fingerprint)
+    val cancelLabel = stringResource(R.string.cancel)
+
     fun launchBiometric(forReset: Boolean) {
         val activity = context.findFragmentActivity() ?: return
         val prompt = BiometricPrompt(
@@ -223,6 +233,7 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
                         confirm = ""
                         error = false
                         mismatch = false
+                        tooShort = false
                         resetAfterBiometric = true
                     } else {
                         vm.unlockSession()
@@ -234,11 +245,9 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
                 .setTitle(
-                    context.getString(
-                        if (forReset) R.string.forgot_pin_biometric_title else R.string.use_fingerprint,
-                    ),
+                    if (forReset) biometricResetTitle else biometricUnlockTitle,
                 )
-                .setNegativeButtonText(context.getString(R.string.lock))
+                .setNegativeButtonText(cancelLabel)
                 .setAllowedAuthenticators(
                     androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK,
                 )
@@ -248,12 +257,9 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(title)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(title),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -261,85 +267,128 @@ fun LockScreen(vm: AppViewModel, onUnlocked: () -> Unit) {
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
         RetailContent(Modifier.padding(pad).padding(24.dp).fillMaxWidth()) {
-            Column {
-                RetailTextField(
-                    value = pin,
-                    onValueChange = { pin = it; error = false; mismatch = false },
-                    label = {
-                        Text(
-                            stringResource(
-                                if (settingPin) R.string.set_new_pin else R.string.enter_pin,
-                            ),
-                        )
-                    },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    numericLtr = true,
-                )
-                if (settingPin) {
-                    Spacer(Modifier.height(8.dp))
-                    RetailTextField(
-                        value = confirm,
-                        onValueChange = { confirm = it; mismatch = false },
-                        label = { Text(stringResource(R.string.confirm_pin)) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        numericLtr = true,
-                    )
-                }
-                if (error) {
-                    Text(stringResource(R.string.enter_pin), color = MaterialTheme.colorScheme.error)
-                }
-                if (mismatch) {
-                    Text(stringResource(R.string.pin_mismatch), color = MaterialTheme.colorScheme.error)
-                }
-                Spacer(Modifier.height(12.dp))
-                RetailPrimaryButton(
-                    onClick = {
-                        if (settingPin) {
-                            if (pin.length < 4 || pin != confirm) {
-                                mismatch = true
-                                return@RetailPrimaryButton
-                            }
-                            if (resetAfterBiometric) {
-                                vm.resetPinAfterBiometric(pin) {
-                                    resetAfterBiometric = false
-                                    onUnlocked()
-                                }
-                            } else {
-                                vm.unlockWithPin(pin) { ok ->
-                                    if (ok) onUnlocked() else error = true
-                                }
-                            }
-                        } else {
-                            vm.unlockWithPin(pin) { ok ->
-                                if (ok) onUnlocked() else error = true
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(
-                            when {
-                                resetAfterBiometric -> R.string.set_new_pin
-                                hasPin -> R.string.unlock_admin
-                                else -> R.string.set_pin
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                RetailCard {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        RetailTextField(
+                            value = pin,
+                            onValueChange = {
+                                pin = it
+                                error = false
+                                mismatch = false
+                                tooShort = false
                             },
-                        ),
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                if (showBiometricUnlock) {
-                    RetailOutlinedButton(
-                        onClick = { launchBiometric(forReset = false) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.use_fingerprint)) }
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (settingPin) R.string.set_new_pin else R.string.enter_pin,
+                                    ),
+                                )
+                            },
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            numericLtr = true,
+                        )
+                        if (settingPin) {
+                            RetailTextField(
+                                value = confirm,
+                                onValueChange = {
+                                    confirm = it
+                                    mismatch = false
+                                    tooShort = false
+                                },
+                                label = { Text(stringResource(R.string.confirm_pin)) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                numericLtr = true,
+                            )
+                        }
+                        if (tooShort) {
+                            Text(
+                                stringResource(R.string.pin_too_short),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        if (error) {
+                            Text(
+                                stringResource(R.string.invalid_pin),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        if (mismatch) {
+                            Text(
+                                stringResource(R.string.pin_mismatch),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        RetailPrimaryButton(
+                            onClick = {
+                                if (settingPin) {
+                                    if (pin.length < 4) {
+                                        tooShort = true
+                                        return@RetailPrimaryButton
+                                    }
+                                    if (pin != confirm) {
+                                        mismatch = true
+                                        return@RetailPrimaryButton
+                                    }
+                                    if (resetAfterBiometric) {
+                                        vm.resetPinAfterBiometric(pin) {
+                                            resetAfterBiometric = false
+                                            onUnlocked()
+                                        }
+                                    } else {
+                                        vm.unlockWithPin(pin) { ok ->
+                                            if (ok) onUnlocked() else error = true
+                                        }
+                                    }
+                                } else {
+                                    if (pin.isBlank()) {
+                                        error = true
+                                        return@RetailPrimaryButton
+                                    }
+                                    vm.unlockWithPin(pin) { ok ->
+                                        if (ok) onUnlocked() else error = true
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    when {
+                                        resetAfterBiometric -> R.string.set_new_pin
+                                        hasPin -> R.string.unlock_admin
+                                        else -> R.string.set_pin
+                                    },
+                                ),
+                            )
+                        }
+                        if (showBiometricUnlock) {
+                            RetailOutlinedButton(
+                                onClick = { launchBiometric(forReset = false) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(stringResource(R.string.use_fingerprint)) }
+                        }
+                    }
                 }
                 if (hasPin && !resetAfterBiometric) {
-                    Spacer(Modifier.height(4.dp))
                     if (biometricAvailable) {
-                        TextButton(onClick = { launchBiometric(forReset = true) }) {
+                        TextButton(
+                            onClick = { launchBiometric(forReset = true) },
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        ) {
                             Text(
                                 stringResource(R.string.forgot_pin),
                                 color = MaterialTheme.colorScheme.primary,
@@ -529,6 +578,14 @@ fun DisplayPanel(vm: AppViewModel, onOpenAdmin: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f, fill = true),
             ) {
+                if (groupedItems.isEmpty()) {
+                    item(key = "empty_display") {
+                        com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                            icon = Icons.Default.Store,
+                            title = stringResource(R.string.no_items),
+                        )
+                    }
+                }
                 groupedItems.forEach { (catKey, catItems) ->
                     val (catId, displayName) = catKey.first to catKey.second
                     item(key = "header_${catId ?: "none"}") {
@@ -619,6 +676,9 @@ private fun DisplayProductCard(
                     if (!unitName.isNullOrBlank()) add("${stringResource(R.string.unit)}: $unitName")
                     if (!categoryName.isNullOrBlank()) {
                         add("${stringResource(R.string.categories)}: $categoryName")
+                    }
+                    if (!item.sku.isNullOrBlank()) {
+                        add("${stringResource(R.string.sku)}: ${item.sku}")
                     }
                 }.joinToString(" · ")
                 Text(
@@ -723,16 +783,24 @@ private fun ProductImage(
     placeholderColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val context = LocalContext.current
-    val bitmap = remember(uri, maxSidePx) {
-        uri?.let { loadProductBitmap(context, it, maxSidePx) }
+    var bitmap by remember(uri, maxSidePx) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(uri, maxSidePx) {
+        bitmap = if (uri.isNullOrBlank()) {
+            null
+        } else {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                loadProductBitmap(context, uri, maxSidePx)
+            }
+        }
     }
     Box(
         modifier = modifier.background(placeholderColor),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) {
+        val loaded = bitmap
+        if (loaded != null) {
             Image(
-                bitmap = bitmap.asImageBitmap(),
+                bitmap = loaded.asImageBitmap(),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
@@ -761,12 +829,20 @@ private fun ItemThumb(uri: String?) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val maxSidePx = with(density) { 96.dp.roundToPx() }
-    val bitmap = remember(uri) {
-        uri?.let { loadProductBitmap(context, it, maxSidePx) }
+    var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(uri, maxSidePx) {
+        bitmap = if (uri.isNullOrBlank()) {
+            null
+        } else {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                loadProductBitmap(context, uri, maxSidePx)
+            }
+        }
     }
-    if (bitmap != null) {
+    val loaded = bitmap
+    if (loaded != null) {
         Image(
-            bitmap = bitmap.asImageBitmap(),
+            bitmap = loaded.asImageBitmap(),
             contentDescription = null,
             modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop,
@@ -791,6 +867,8 @@ fun ItemsScreen(
     var categoryMenuOpen by rememberSaveable { mutableStateOf(false) }
     var unitMenuOpen by rememberSaveable { mutableStateOf(false) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var deleteError by rememberSaveable { mutableStateOf<String?>(null) }
+    val itemInUseMsg = stringResource(R.string.item_in_use)
 
     val showForm = form.showForm
     val editingId = form.editingId
@@ -798,6 +876,7 @@ fun ItemsScreen(
     val packTotal = form.packTotal
     val piecesPerUnitText = form.piecesPerUnitText
     val stockUnits = form.stockUnits
+    val lowStockThresholdText = form.lowStockThresholdText
     val sku = form.sku
     val selectedUnitId = form.selectedUnitId
     val selectedCategoryId = form.selectedCategoryId
@@ -832,12 +911,12 @@ fun ItemsScreen(
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) vm.updateItemForm { it.copy(imageUri = uri.toString()) }
+        if (uri != null) vm.importAndSetItemImage(uri.toString())
     }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) {
             val uri = form.pendingCameraUri
-            if (uri != null) vm.updateItemForm { it.copy(imageUri = uri, pendingCameraUri = null) }
+            if (uri != null) vm.importAndSetItemImage(uri)
         }
     }
     val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -851,13 +930,9 @@ fun ItemsScreen(
     Scaffold(
         topBar = {
             if (!embedded) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.items)) },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                        }
-                    },
+                com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                    title = stringResource(R.string.items),
+                    onBack = onBack,
                 )
             }
         },
@@ -878,7 +953,7 @@ fun ItemsScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) { Icon(Icons.Default.Add, null) }
+            ) { Icon(if (showForm) Icons.Default.Close else Icons.Default.Add, null) }
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = retailContentWindowInsets(embedded = embedded),
@@ -896,8 +971,17 @@ fun ItemsScreen(
                         vm.updateItemForm { draft -> draft.copy(listQuery = it) }
                         vm.setQuery(it)
                     },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
                     label = { Text(stringResource(R.string.search)) },
                 )
+                deleteError?.let { err ->
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
             if (showForm) {
                 Column(
@@ -906,8 +990,9 @@ fun ItemsScreen(
                         .fillMaxWidth()
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(if (editingId == 0L) R.string.add else R.string.edit_item),
                     style = MaterialTheme.typography.titleMedium,
@@ -918,10 +1003,15 @@ fun ItemsScreen(
                     onValueChange = { value -> vm.updateItemForm { it.copy(title = value) } },
                     label = { Text(stringResource(R.string.title)) },
                 )
+                RetailTextField(
+                    value = sku,
+                    onValueChange = { value -> vm.updateItemForm { it.copy(sku = value) } },
+                    label = { Text(stringResource(R.string.sku)) },
+                    numericLtr = true,
+                )
                 ExposedDropdownMenuBox(
                     expanded = categoryMenuOpen,
                     onExpandedChange = { categoryMenuOpen = !categoryMenuOpen },
-                    modifier = Modifier.padding(top = 8.dp),
                 ) {
                     OutlinedTextField(
                         value = categoryLabel,
@@ -930,7 +1020,7 @@ fun ItemsScreen(
                         label = { Text(stringResource(R.string.select_category)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuOpen) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = retailTextFieldColors(),
@@ -972,7 +1062,6 @@ fun ItemsScreen(
                     ExposedDropdownMenuBox(
                         expanded = unitMenuOpen,
                         onExpandedChange = { unitMenuOpen = !unitMenuOpen },
-                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         OutlinedTextField(
                             value = unitLabel,
@@ -981,7 +1070,7 @@ fun ItemsScreen(
                             label = { Text(stringResource(R.string.unit)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuOpen) },
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
                                 .fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             colors = retailTextFieldColors(),
@@ -1027,7 +1116,7 @@ fun ItemsScreen(
                         "${stringResource(R.string.unit_piece_price)}: ${Money.format(piecePurchase)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
                     )
                 }
                 RetailTextField(
@@ -1037,39 +1126,53 @@ fun ItemsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     numericLtr = true,
                 )
+                RetailTextField(
+                    value = lowStockThresholdText,
+                    onValueChange = { value -> vm.updateItemForm { it.copy(lowStockThresholdText = value) } },
+                    label = { Text(stringResource(R.string.low_stock_threshold)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    numericLtr = true,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        val startCamera = {
-                            val dir = File(context.cacheDir, "item_images").apply { mkdirs() }
-                            val file = File(dir, "item_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${BuildConfig.APPLICATION_ID}.fileprovider",
-                                file,
-                            )
-                            vm.updateItemForm { it.copy(pendingCameraUri = uri.toString()) }
-                            cameraLauncher.launch(uri)
-                        }
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                            android.content.pm.PackageManager.PERMISSION_GRANTED
-                        ) {
-                            startCamera()
-                        } else {
-                            cameraPermission.launch(Manifest.permission.CAMERA)
-                        }
-                    }) { Text(stringResource(R.string.take_photo)) }
-                    OutlinedButton(onClick = { galleryLauncher.launch("image/*") }) {
+                    RetailOutlinedButton(
+                        onClick = {
+                            val startCamera = {
+                                val dir = File(context.cacheDir, "item_images").apply { mkdirs() }
+                                val file = File(dir, "item_${System.currentTimeMillis()}.jpg")
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${BuildConfig.APPLICATION_ID}.fileprovider",
+                                    file,
+                                )
+                                vm.updateItemForm { it.copy(pendingCameraUri = uri.toString()) }
+                                cameraLauncher.launch(uri)
+                            }
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                startCamera()
+                            } else {
+                                cameraPermission.launch(Manifest.permission.CAMERA)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.take_photo)) }
+                    RetailOutlinedButton(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        modifier = Modifier.weight(1f),
+                    ) {
                         Text(stringResource(R.string.pick_image))
                     }
                 }
                 ItemThumb(imageUri)
-                Button(
+                RetailPrimaryButton(
                     onClick = {
-                        val unitId = selectedUnitId ?: units.firstOrNull()?.id ?: return@Button
-                        if (title.isBlank()) return@Button
+                        val unitId = selectedUnitId ?: units.firstOrNull()?.id ?: return@RetailPrimaryButton
+                        if (title.isBlank()) return@RetailPrimaryButton
                         val pieces = piecesPerUnitValue
                         val pack = packTotal.toDoubleOrNull() ?: 0.0
                         val unitsQty = stockUnits.toDoubleOrNull() ?: 0.0
+                        val threshold = (lowStockThresholdText.toDoubleOrNull() ?: 1.0).coerceAtLeast(0.0)
                         vm.saveItem(
                             id = editingId,
                             title = title.trim(),
@@ -1079,78 +1182,93 @@ fun ItemsScreen(
                             purchaseDollarRate = settings.dollarRate,
                             piecesPerUnit = pieces,
                             stockQty = unitsQty * pieces,
-                            lowStockThreshold = 1.0,
+                            lowStockThreshold = threshold,
                             sku = sku,
                             imageUri = imageUri,
                         )
                         vm.resetItemForm(defaultUnitId = units.firstOrNull()?.id)
                     },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 ) { Text(stringResource(R.string.save)) }
+                TextButton(
+                    onClick = { vm.resetItemForm(defaultUnitId = units.firstOrNull()?.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
+                }
                 Spacer(Modifier.height(88.dp))
                 }
             } else {
-                LazyColumn(Modifier.weight(1f, fill = true)) {
-                    items(items, key = { it.id }) { item ->
-                        val catName = categories.firstOrNull { it.id == item.categoryId }?.let {
-                            if (fa) it.nameFa else it.nameEn
-                        }
-                        val unitName = units.firstOrNull { it.id == item.unitId }?.let {
-                            if (fa) it.nameFa else it.nameEn
-                        }
-                        val pieces = item.piecesPerUnit.coerceAtLeast(1.0)
-                        RetailCard {
-                            ListItem(
-                                headlineContent = {
-                                    Text(item.title, color = MaterialTheme.colorScheme.onSurface)
-                                },
-                                supportingContent = {
-                                    Text(
-                                        buildString {
-                                            append("${stringResource(R.string.unit_piece_price)}: ${Money.format(item.sellPrice)}")
-                                            if (pieces > 1.0) {
-                                                append(" · ${stringResource(R.string.pieces_per_unit)}: $pieces")
+                if (items.isEmpty()) {
+                    com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                        icon = Icons.Default.Store,
+                        title = stringResource(R.string.no_items),
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f, fill = true),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                    ) {
+                        items(items, key = { it.id }) { item ->
+                            val catName = categories.firstOrNull { it.id == item.categoryId }?.let {
+                                if (fa) it.nameFa else it.nameEn
+                            }
+                            val unitName = units.firstOrNull { it.id == item.unitId }?.let {
+                                if (fa) it.nameFa else it.nameEn
+                            }
+                            val pieces = item.piecesPerUnit.coerceAtLeast(1.0)
+                            RetailCard {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(item.title, color = MaterialTheme.colorScheme.onSurface)
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            buildString {
+                                                append("${stringResource(R.string.unit_piece_price)}: ${Money.format(item.sellPrice)}")
+                                                if (pieces > 1.0) {
+                                                    append(" · ${stringResource(R.string.pieces_per_unit)}: $pieces")
+                                                }
+                                                if (unitName != null) {
+                                                    append(" · ${stringResource(R.string.unit)}: $unitName")
+                                                }
+                                                append(
+                                                    " · ${stringResource(R.string.stock)}: ${item.stockQty} " +
+                                                        stringResource(R.string.stock_pieces),
+                                                )
+                                                if (catName != null) {
+                                                    append(" · ${stringResource(R.string.categories)}: $catName")
+                                                }
+                                                if (!item.sku.isNullOrBlank()) {
+                                                    append(" · ${stringResource(R.string.sku)}: ${item.sku}")
+                                                }
+                                            },
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    },
+                                    leadingContent = { ItemThumb(item.imageUri) },
+                                    trailingContent = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(onClick = { vm.openItemForm(item) }) {
+                                                Icon(
+                                                    Icons.Default.Edit,
+                                                    contentDescription = stringResource(R.string.edit_item),
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
                                             }
-                                            if (unitName != null) {
-                                                append(" · ${stringResource(R.string.unit)}: $unitName")
+                                            IconButton(onClick = { pendingDeleteId = item.id; deleteError = null }) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = stringResource(R.string.delete),
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                )
                                             }
-                                            append(
-                                                " · ${stringResource(R.string.stock)}: ${item.stockQty} " +
-                                                    stringResource(R.string.stock_pieces),
-                                            )
-                                            if (catName != null) {
-                                                append(" · ${stringResource(R.string.categories)}: $catName")
-                                            }
-                                        },
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                leadingContent = { ItemThumb(item.imageUri) },
-                                trailingContent = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(onClick = { vm.openItemForm(item) }) {
-                                            Icon(
-                                                Icons.Default.Edit,
-                                                contentDescription = stringResource(R.string.edit_item),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
                                         }
-                                        IconButton(onClick = { pendingDeleteId = item.id }) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = stringResource(R.string.delete),
-                                                tint = MaterialTheme.colorScheme.error,
-                                            )
-                                        }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
                         }
                     }
-                }
-                if (items.isEmpty()) {
-                    Text(stringResource(R.string.no_items), color = MaterialTheme.colorScheme.onBackground)
                 }
             }
         }
@@ -1168,7 +1286,9 @@ fun ItemsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        vm.deleteItem(deleteId)
+                        vm.deleteItem(deleteId) {
+                            deleteError = itemInUseMsg
+                        }
                         pendingDeleteId = null
                     },
                 ) {
@@ -1190,6 +1310,8 @@ fun SimpleNameListScreen(
     titleRes: Int,
     names: List<Pair<Long, String>>,
     labelRes: Int,
+    externalError: String? = null,
+    onClearExternalError: (() -> Unit)? = null,
     onBack: () -> Unit,
     onAdd: (String) -> Unit,
     onUpdate: ((Long, String) -> Unit)? = null,
@@ -1199,19 +1321,13 @@ fun SimpleNameListScreen(
     var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
     var errorMsg by rememberSaveable { mutableStateOf<String?>(null) }
+    val displayError = externalError ?: errorMsg
     val editing = editingId != null && onUpdate != null
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(titleRes)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(titleRes),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -1228,7 +1344,11 @@ fun SimpleNameListScreen(
         ) {
             RetailTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = {
+                    name = it
+                    errorMsg = null
+                    onClearExternalError?.invoke()
+                },
                 label = { Text(stringResource(labelRes)) },
             )
             Spacer(Modifier.height(8.dp))
@@ -1243,6 +1363,8 @@ fun SimpleNameListScreen(
                     }
                     name = ""
                     editingId = null
+                    errorMsg = null
+                    onClearExternalError?.invoke()
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -1258,6 +1380,14 @@ fun SimpleNameListScreen(
                 ) {
                     Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.primary)
                 }
+            }
+            displayError?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
             if (onUpdate != null) {
                 Text(
@@ -1285,6 +1415,7 @@ fun SimpleNameListScreen(
                                     editingId = id
                                     name = n
                                     errorMsg = null
+                                    onClearExternalError?.invoke()
                                 }
                                 .background(
                                     if (selected) {
@@ -1310,6 +1441,7 @@ fun SimpleNameListScreen(
                                         editingId = id
                                         name = n
                                         errorMsg = null
+                                        onClearExternalError?.invoke()
                                     },
                                 ) {
                                     Icon(
@@ -1334,14 +1466,6 @@ fun SimpleNameListScreen(
                         }
                     }
                 }
-            }
-            errorMsg?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -1384,6 +1508,7 @@ fun SimpleNameListScreen(
 fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val s by vm.settings.collectAsStateWithLifecycle()
+    val themeModePref by vm.themeMode.collectAsStateWithLifecycle()
     var dollar by rememberSaveable { mutableStateOf("") }
     var tax by rememberSaveable { mutableStateOf("") }
     var profit by rememberSaveable { mutableStateOf("") }
@@ -1404,6 +1529,9 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
             .canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
             androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
     }
+    val savedOkMessage = stringResource(R.string.saved_ok)
+    val batchOkMessage = stringResource(R.string.batch_ok)
+    val effectiveThemeMode = themeModePref ?: if (dark) "dark" else "light"
 
     // Hydrate from Room whenever settings change and the user is not mid-edit.
     // Previously remember(s.id) stuck on the first default SettingsEntity() and never
@@ -1423,16 +1551,9 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.settings),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -1444,143 +1565,210 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
                 .padding(pad)
                 .padding(16.dp)
                 .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                SettingsNumRow(stringResource(R.string.dollar_rate), stringResource(R.string.help_dollar_rate), dollar) {
-                    formDirty = true
-                    dollar = it
-                }
-                SettingsNumRow(stringResource(R.string.tax_percent), stringResource(R.string.help_tax_percent), tax) {
-                    formDirty = true
-                    tax = it
-                }
-                SettingsNumRow(stringResource(R.string.profit_percent), stringResource(R.string.help_profit_percent), profit) {
-                    formDirty = true
-                    profit = it
-                }
-                SettingsNumRow(stringResource(R.string.manager_percent), stringResource(R.string.help_manager_percent), manager) {
-                    formDirty = true
-                    manager = it
-                }
-                SettingsNumRow(stringResource(R.string.dollar_change_percent), stringResource(R.string.help_dollar_change_percent), dollarChange) {
-                    formDirty = true
-                    dollarChange = it
-                }
-                SettingsNumRow(stringResource(R.string.installment_diff_percent), stringResource(R.string.help_installment_diff_percent), installment) {
-                    formDirty = true
-                    installment = it
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RetailTextField(
-                        value = currency,
-                        onValueChange = {
+                RetailCard {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SettingsNumRow(stringResource(R.string.dollar_rate), stringResource(R.string.help_dollar_rate), dollar) {
                             formDirty = true
-                            currency = it
-                        },
-                        label = { Text(stringResource(R.string.currency)) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    HelpIconButton(stringResource(R.string.help_currency))
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                    Text(stringResource(R.string.display_dark), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-                    Switch(checked = dark, onCheckedChange = {
-                        dark = it
-                        // Patch from DB so in-memory default settings cannot wipe dollar/tax/etc.
-                        vm.patchSettings { cur -> cur.copy(displayDarkMode = it) }
-                    })
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.biometric), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-                    Switch(
-                        checked = biometric && biometricAvailable,
-                        onCheckedChange = {
-                            if (biometricAvailable) {
-                                biometric = it
-                                vm.patchSettings { cur -> cur.copy(biometricUnlockEnabled = it) }
-                            }
-                        },
-                        enabled = biometricAvailable,
-                    )
-                }
-                if (!biometricAvailable) {
-                    Text(
-                        stringResource(R.string.biometric_unavailable),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(stringResource(R.string.language), Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurface)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RetailFilterChip(
-                        selected = language.startsWith("fa"),
-                        label = stringResource(R.string.lang_fa),
-                        onClick = {
-                            language = "fa"
-                            vm.patchSettings { cur -> cur.copy(languageTag = "fa") }
-                        },
-                    )
-                    RetailFilterChip(
-                        selected = language.startsWith("en"),
-                        label = stringResource(R.string.lang_en),
-                        onClick = {
-                            language = "en"
-                            vm.patchSettings { cur -> cur.copy(languageTag = "en") }
-                        },
-                    )
-                }
-                Button(
-                    onClick = {
-                        val toSave = SettingsEntity(
-                            id = 1,
-                            dollarRate = dollar.toDoubleOrNull() ?: 0.0,
-                            taxPercent = tax.toDoubleOrNull() ?: 0.0,
-                            profitPercent = profit.toDoubleOrNull() ?: 0.0,
-                            managerPercent = manager.toDoubleOrNull() ?: 0.0,
-                            dollarChangePercent = dollarChange.toDoubleOrNull() ?: 0.0,
-                            installmentDiffPercent = installment.toDoubleOrNull() ?: 0.0,
-                            currencyCode = currency.ifBlank { "IRR" },
-                            displayDarkMode = dark,
-                            biometricUnlockEnabled = biometric && biometricAvailable,
-                            languageTag = language.ifBlank { "fa" },
-                        )
-                        formDirty = false
-                        vm.saveSettings(toSave)
-                        successMsg = context.getString(R.string.saved_ok)
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) { Text(stringResource(R.string.save)) }
-                OutlinedButton(
-                    onClick = { vm.recalculate() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                ) { Text(stringResource(R.string.recalculate_prices)) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RetailTextField(
-                        value = factor,
-                        onValueChange = { factor = it },
-                        label = { Text(stringResource(R.string.price_factor)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        numericLtr = true,
-                        modifier = Modifier
-                            .weight(1f)
-                            .bringIntoViewRequester(bringIntoViewRequester)
-                            .onFocusEvent { state ->
-                                if (state.isFocused) scope.launch { bringIntoViewRequester.bringIntoView() }
+                            dollar = it
+                        }
+                        SettingsNumRow(stringResource(R.string.tax_percent), stringResource(R.string.help_tax_percent), tax) {
+                            formDirty = true
+                            tax = it
+                        }
+                        SettingsNumRow(stringResource(R.string.profit_percent), stringResource(R.string.help_profit_percent), profit) {
+                            formDirty = true
+                            profit = it
+                        }
+                        SettingsNumRow(stringResource(R.string.manager_percent), stringResource(R.string.help_manager_percent), manager) {
+                            formDirty = true
+                            manager = it
+                        }
+                        SettingsNumRow(stringResource(R.string.dollar_change_percent), stringResource(R.string.help_dollar_change_percent), dollarChange) {
+                            formDirty = true
+                            dollarChange = it
+                        }
+                        SettingsNumRow(stringResource(R.string.installment_diff_percent), stringResource(R.string.help_installment_diff_percent), installment) {
+                            formDirty = true
+                            installment = it
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RetailTextField(
+                                value = currency,
+                                onValueChange = {
+                                    formDirty = true
+                                    currency = it
+                                },
+                                label = { Text(stringResource(R.string.currency)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            HelpIconButton(stringResource(R.string.help_currency))
+                        }
+                        RetailPrimaryButton(
+                            onClick = {
+                                val parsedDollar = (dollar.toDoubleOrNull() ?: s.dollarRate).coerceAtLeast(0.01)
+                                val toSave = SettingsEntity(
+                                    id = 1,
+                                    dollarRate = parsedDollar,
+                                    taxPercent = (tax.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0),
+                                    profitPercent = (profit.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0),
+                                    managerPercent = (manager.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0),
+                                    dollarChangePercent = (dollarChange.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0),
+                                    installmentDiffPercent = (installment.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0),
+                                    currencyCode = currency.ifBlank { "IRR" },
+                                    displayDarkMode = dark,
+                                    biometricUnlockEnabled = biometric && biometricAvailable,
+                                    languageTag = language.ifBlank { "fa" },
+                                )
+                                formDirty = false
+                                vm.saveSettings(toSave)
+                                successMsg = savedOkMessage
                             },
-                    )
-                    HelpIconButton(stringResource(R.string.help_price_factor))
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        ) { Text(stringResource(R.string.save)) }
+                        RetailOutlinedButton(
+                            onClick = {
+                                vm.recalculate()
+                                successMsg = savedOkMessage
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.recalculate_prices)) }
+                    }
                 }
-                Button(
-                    onClick = {
-                        val f = factor.toDoubleOrNull() ?: 1.0
-                        vm.batchFactor(f)
-                        successMsg = context.getString(R.string.batch_ok)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                ) { Text(stringResource(R.string.batch_pricing)) }
+            }
+            item {
+                RetailCard {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.theme_mode),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RetailFilterChip(
+                                selected = effectiveThemeMode == "system",
+                                label = stringResource(R.string.theme_system),
+                                onClick = { vm.setThemeMode("system") },
+                            )
+                            RetailFilterChip(
+                                selected = effectiveThemeMode == "light",
+                                label = stringResource(R.string.theme_light),
+                                onClick = {
+                                    dark = false
+                                    vm.setThemeMode("light")
+                                },
+                            )
+                            RetailFilterChip(
+                                selected = effectiveThemeMode == "dark",
+                                label = stringResource(R.string.theme_dark),
+                                onClick = {
+                                    dark = true
+                                    vm.setThemeMode("dark")
+                                },
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.display_dark), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+                            Switch(
+                                checked = effectiveThemeMode == "dark" || (effectiveThemeMode != "light" && dark),
+                                colors = com.kalaban.farshidb2011.ui.components.retailSwitchColors(),
+                                onCheckedChange = {
+                                    dark = it
+                                    vm.setThemeMode(if (it) "dark" else "light")
+                                },
+                            )
+                        }
+                        RetailDivider()
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.biometric), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+                            Switch(
+                                checked = biometric && biometricAvailable,
+                                colors = com.kalaban.farshidb2011.ui.components.retailSwitchColors(),
+                                onCheckedChange = {
+                                    if (biometricAvailable) {
+                                        biometric = it
+                                        vm.patchSettings { cur -> cur.copy(biometricUnlockEnabled = it) }
+                                    }
+                                },
+                                enabled = biometricAvailable,
+                            )
+                        }
+                        if (!biometricAvailable) {
+                            Text(
+                                stringResource(R.string.biometric_unavailable),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        RetailDivider()
+                        Text(
+                            stringResource(R.string.language),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RetailFilterChip(
+                                selected = language.startsWith("fa"),
+                                label = stringResource(R.string.lang_fa),
+                                onClick = {
+                                    language = "fa"
+                                    vm.patchSettings { cur -> cur.copy(languageTag = "fa") }
+                                },
+                            )
+                            RetailFilterChip(
+                                selected = language.startsWith("en"),
+                                label = stringResource(R.string.lang_en),
+                                onClick = {
+                                    language = "en"
+                                    vm.patchSettings { cur -> cur.copy(languageTag = "en") }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                RetailCard {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RetailTextField(
+                                value = factor,
+                                onValueChange = { factor = it },
+                                label = { Text(stringResource(R.string.price_factor)) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                numericLtr = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .bringIntoViewRequester(bringIntoViewRequester)
+                                    .onFocusEvent { state ->
+                                        if (state.isFocused) scope.launch { bringIntoViewRequester.bringIntoView() }
+                                    },
+                            )
+                            HelpIconButton(stringResource(R.string.help_price_factor))
+                        }
+                        RetailPrimaryButton(
+                            onClick = {
+                                val f = factor.toDoubleOrNull() ?: 1.0
+                                if (f > 0.0) {
+                                    vm.batchFactor(f)
+                                    successMsg = batchOkMessage
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.batch_pricing)) }
+                    }
+                }
                 Spacer(Modifier.height(120.dp))
             }
         }
@@ -1617,16 +1805,16 @@ fun SalesScreen(
     embedded: Boolean = false,
 ) {
     val sales by vm.sales.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val fa = settings.languageTag.ifBlank { "fa" }.startsWith("fa")
+    var selectedSaleId by rememberSaveable { mutableStateOf<Long?>(null) }
+
     Scaffold(
         topBar = {
             if (!embedded) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.sales)) },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                        }
-                    },
+                com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                    title = stringResource(R.string.sales),
+                    onBack = onBack,
                 )
             }
         },
@@ -1640,22 +1828,186 @@ fun SalesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = retailContentWindowInsets(embedded = embedded),
     ) { pad ->
-        LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp)) {
-            items(sales, key = { it.id }) { sale ->
-                RetailCard {
-                    ListItem(
-                        headlineContent = { Text(sale.buyerName) },
-                        supportingContent = {
-                            Text(
-                                "${sale.jalaliDate} · ${sale.paymentType} · ${Money.format(sale.totalAmount)} · " +
-                                    "${stringResource(R.string.open_balance)} ${Money.format(sale.openBalance)}",
-                            )
-                        },
-                    )
+        if (sales.isEmpty()) {
+            com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                icon = Icons.Outlined.Payments,
+                title = stringResource(R.string.no_sales_yet),
+                modifier = Modifier.padding(pad),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(pad).padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+            ) {
+                items(sales, key = { it.id }) { sale ->
+                    val typeLabel = if (sale.paymentType == PaymentType.CREDIT) {
+                        stringResource(R.string.credit)
+                    } else {
+                        stringResource(R.string.cash)
+                    }
+                    RetailCard(
+                        modifier = Modifier.clickable { selectedSaleId = sale.id },
+                    ) {
+                        ListItem(
+                            headlineContent = {
+                                Text(sale.buyerName, color = MaterialTheme.colorScheme.onSurface)
+                            },
+                            supportingContent = {
+                                Text(
+                                    buildString {
+                                        append("${sale.jalaliDate} · $typeLabel · ${Money.format(sale.totalAmount)} ${settings.currencyCode}")
+                                        if (sale.paymentType == PaymentType.CREDIT) {
+                                            append(" · ${stringResource(R.string.open_balance)}: ${Money.format(sale.openBalance)}")
+                                        }
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            trailingContent = {
+                                Text(
+                                    Money.format(sale.totalAmount),
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
     }
+
+    selectedSaleId?.let { id ->
+        val sale = sales.firstOrNull { it.id == id }
+        if (sale != null) {
+            SaleDetailDialog(
+                sale = sale,
+                currencyCode = settings.currencyCode,
+                fa = fa,
+                vm = vm,
+                onDismiss = { selectedSaleId = null },
+            )
+        } else {
+            selectedSaleId = null
+        }
+    }
+}
+
+@Composable
+private fun SaleDetailDialog(
+    sale: com.kalaban.farshidb2011.data.local.entity.SaleEntity,
+    currencyCode: String,
+    fa: Boolean,
+    vm: AppViewModel,
+    onDismiss: () -> Unit,
+) {
+    val lines by vm.observeLinesForSale(sale.id).collectAsStateWithLifecycle(initialValue = emptyList())
+    val payments by vm.observePaymentsForSale(sale.id).collectAsStateWithLifecycle(initialValue = emptyList())
+    val scheme = MaterialTheme.colorScheme
+    val typeLabel = if (sale.paymentType == PaymentType.CREDIT) {
+        stringResource(R.string.credit)
+    } else {
+        stringResource(R.string.cash)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = scheme.surface,
+        titleContentColor = scheme.onSurface,
+        textContentColor = scheme.onSurface,
+        title = {
+            Text(
+                "${stringResource(R.string.sale_details)} — ${sale.buyerName}",
+                color = scheme.onSurface,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "${sale.jalaliDate} · $typeLabel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+                sale.dueAtEpochMs?.let { dueMs ->
+                    val dueText = JalaliDate.fromEpochMs(dueMs).format()
+                    Text(
+                        "${stringResource(R.string.due_date)}: $dueText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
+                RetailDivider()
+                lines.forEach { line ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "${line.itemTitle} (${line.quantity} × ${Money.format(line.unitPrice)})",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            Money.format(line.lineTotal),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.tertiary,
+                        )
+                    }
+                }
+                RetailDivider()
+                Text(
+                    "${stringResource(R.string.total)}: ${Money.format(sale.totalAmount)} $currencyCode",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = scheme.onSurface,
+                )
+                if (sale.paymentType == PaymentType.CREDIT) {
+                    Text(
+                        "${stringResource(R.string.open_balance)}: ${Money.format(sale.openBalance)} $currencyCode",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (sale.openBalance > 0.0) scheme.error else scheme.primary,
+                    )
+                    if (sale.manuallyZeroed && !sale.zeroReason.isNullOrBlank()) {
+                        Text(
+                            "${stringResource(R.string.zeroed_reason)}: ${sale.zeroReason}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (payments.isNotEmpty()) {
+                    RetailDivider()
+                    Text(
+                        stringResource(R.string.payment_history),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = scheme.onSurface,
+                    )
+                    payments.forEach { pay ->
+                        val dateStr = if (fa) {
+                            JalaliDate.fromEpochMs(pay.paidAtEpochMs).format()
+                        } else {
+                            DateFormat.getDateInstance(DateFormat.SHORT).format(Date(pay.paidAtEpochMs))
+                        }
+                        Text(
+                            "$dateStr: ${Money.format(pay.amount)} $currencyCode",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.ok), color = scheme.primary)
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1665,10 +2017,11 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
     val draft by vm.newSaleDraft.collectAsStateWithLifecycle()
     var dateError by rememberSaveable { mutableStateOf(false) }
     var itemMenuOpen by rememberSaveable { mutableStateOf(false) }
-    var lastPricedItemId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var lastPricedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val buyer = draft.buyer
     val credit = draft.credit
     val jalaliDate = draft.jalaliDate
+    val dueDaysText = draft.dueDaysText
     val selectedItemId = draft.selectedItemId
     val qty = draft.qty
     val unitPriceText = draft.unitPriceText
@@ -1677,27 +2030,26 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
     val selectedItem = items.firstOrNull { it.id == selectedItemId }
     val canSubmit = cart.isNotEmpty() && buyer.isNotBlank() && !dateError
 
-    // Fill unit price only when the selected item changes — not on every recomposition/rotation.
-    LaunchedEffect(selectedItemId, items) {
+    // Ensure full item list is visible even if ItemsScreen had an active search filter.
+    LaunchedEffect(Unit) {
+        vm.setQuery("")
+    }
+
+    // Fill unit price when the selected item or cash/credit mode changes.
+    LaunchedEffect(selectedItemId, credit, items) {
         val id = selectedItemId ?: return@LaunchedEffect
-        if (lastPricedItemId == id) return@LaunchedEffect
+        val key = "$id:$credit"
+        if (lastPricedKey == key) return@LaunchedEffect
         val item = items.firstOrNull { it.id == id } ?: return@LaunchedEffect
-        vm.updateNewSaleDraft { it.copy(unitPriceText = Money.format(vm.unitPriceForSale(item))) }
-        lastPricedItemId = id
+        vm.updateNewSaleDraft { it.copy(unitPriceText = Money.format(vm.unitPriceForSale(item, installment = credit))) }
+        lastPricedKey = key
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.record_sale)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.record_sale),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -1705,222 +2057,261 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
         RetailContent(Modifier.padding(pad).fillMaxSize()) {
-            Column(Modifier.padding(16.dp).fillMaxSize()) {
-                RetailTextField(
-                    value = buyer,
-                    onValueChange = { value -> vm.updateNewSaleDraft { it.copy(buyer = value) } },
-                    label = { Text(stringResource(R.string.buyer_name)) },
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 8.dp),
-                ) {
-                    RetailFilterChip(
-                        selected = !credit,
-                        label = stringResource(R.string.cash),
-                        onClick = { vm.updateNewSaleDraft { it.copy(credit = false) } },
-                    )
-                    RetailFilterChip(
-                        selected = credit,
-                        label = stringResource(R.string.credit),
-                        onClick = { vm.updateNewSaleDraft { it.copy(credit = true) } },
-                    )
-                }
-                RetailTextField(
-                    value = jalaliDate,
-                    onValueChange = { value ->
-                        vm.updateNewSaleDraft { it.copy(jalaliDate = value) }
-                        dateError = JalaliDate.parse(value) == null
-                    },
-                    label = { Text(stringResource(R.string.sale_date)) },
-                    numericLtr = true,
-                )
-                if (dateError) {
-                    Text(
-                        stringResource(R.string.sale_invalid_date),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                Text(
-                    stringResource(R.string.add_to_cart),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                )
-                ExposedDropdownMenuBox(
-                    expanded = itemMenuOpen,
-                    onExpandedChange = { itemMenuOpen = !itemMenuOpen },
-                ) {
-                    OutlinedTextField(
-                        value = selectedItem?.title ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.select_item)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = itemMenuOpen) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = retailTextFieldColors(),
-                        textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = itemMenuOpen,
-                        onDismissRequest = { itemMenuOpen = false },
-                    ) {
-                        items.forEach { item ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "${item.title} · ${Money.format(vm.unitPriceForSale(item))}",
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                },
-                                onClick = {
-                                    lastPricedItemId = null
-                                    vm.updateNewSaleDraft { it.copy(selectedItemId = item.id) }
-                                    itemMenuOpen = false
-                                },
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "sale_header") {
+                    RetailCard {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            RetailTextField(
+                                value = buyer,
+                                onValueChange = { value -> vm.updateNewSaleDraft { it.copy(buyer = value) } },
+                                label = { Text(stringResource(R.string.buyer_name)) },
                             )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                RetailFilterChip(
+                                    selected = !credit,
+                                    label = stringResource(R.string.cash),
+                                    onClick = { vm.updateNewSaleDraft { it.copy(credit = false) } },
+                                )
+                                RetailFilterChip(
+                                    selected = credit,
+                                    label = stringResource(R.string.credit),
+                                    onClick = { vm.updateNewSaleDraft { it.copy(credit = true) } },
+                                )
+                            }
+                            RetailTextField(
+                                value = jalaliDate,
+                                onValueChange = { value ->
+                                    vm.updateNewSaleDraft { it.copy(jalaliDate = value) }
+                                    dateError = JalaliDate.parse(value) == null
+                                },
+                                label = { Text(stringResource(R.string.sale_date)) },
+                                numericLtr = true,
+                            )
+                            if (dateError) {
+                                Text(
+                                    stringResource(R.string.sale_invalid_date),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            if (credit) {
+                                RetailTextField(
+                                    value = dueDaysText,
+                                    onValueChange = { value -> vm.updateNewSaleDraft { it.copy(dueDaysText = value) } },
+                                    label = { Text(stringResource(R.string.due_days)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    numericLtr = true,
+                                )
+                            }
                         }
                     }
                 }
-                RetailTextField(
-                    value = qty,
-                    onValueChange = { value -> vm.updateNewSaleDraft { it.copy(qty = value) } },
-                    label = {
-                        Text(
-                            if (selectedItem != null) {
-                                "${stringResource(R.string.qty)} — ${selectedItem.title}"
-                            } else {
-                                stringResource(R.string.qty)
-                            },
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    numericLtr = true,
-                )
-                RetailTextField(
-                    value = unitPriceText,
-                    onValueChange = { value -> vm.updateNewSaleDraft { it.copy(unitPriceText = value) } },
-                    label = { Text(stringResource(R.string.unit_price_editable)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    numericLtr = true,
-                )
-                RetailPrimaryButton(
-                    onClick = {
-                        val item = selectedItem
-                        if (item == null) return@RetailPrimaryButton
-                        val q = qty.toDoubleOrNull() ?: return@RetailPrimaryButton
-                        val price = Money.round(
-                            unitPriceText.toDoubleOrNull() ?: vm.unitPriceForSale(item),
-                        )
-                        if (q <= 0.0) return@RetailPrimaryButton
-                        vm.updateNewSaleDraft { d ->
-                            d.copy(
-                                cart = d.cart + SaleCartLineDraft(item.id, item.title, q, price),
-                                qty = "1",
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    enabled = selectedItem != null,
-                ) { Text(stringResource(R.string.add_line)) }
-                if (selectedItem == null && items.isNotEmpty()) {
-                    Text(
-                        stringResource(R.string.sale_need_item),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
 
-                Text(
-                    stringResource(R.string.cart),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-                LazyColumn(Modifier.weight(1f, fill = true)) {
-                    items(cart.size) { index ->
-                        val line = cart[index]
-                        RetailCard {
-                            ListItem(
-                                headlineContent = {
-                                    Text(line.title, color = MaterialTheme.colorScheme.onSurface)
-                                },
-                                supportingContent = {
+                item(key = "add_item_card") {
+                    RetailCard {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.add_to_cart),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            ExposedDropdownMenuBox(
+                                expanded = itemMenuOpen,
+                                onExpandedChange = { itemMenuOpen = !itemMenuOpen },
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedItem?.title ?: "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.select_item)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = itemMenuOpen) },
+                                    modifier = Modifier
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
+                                        .fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = retailTextFieldColors(),
+                                    textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = itemMenuOpen,
+                                    onDismissRequest = { itemMenuOpen = false },
+                                ) {
+                                    items.forEach { item ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    "${item.title} · ${Money.format(vm.unitPriceForSale(item, installment = credit))}",
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                            },
+                                            onClick = {
+                                                lastPricedKey = null
+                                                vm.updateNewSaleDraft { it.copy(selectedItemId = item.id) }
+                                                itemMenuOpen = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            RetailTextField(
+                                value = qty,
+                                onValueChange = { value -> vm.updateNewSaleDraft { it.copy(qty = value) } },
+                                label = {
                                     Text(
-                                        "${line.quantity} × ${Money.format(line.unitPrice)} = ${Money.format(line.quantity * line.unitPrice)}",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        if (selectedItem != null) {
+                                            "${stringResource(R.string.qty)} — ${selectedItem.title}"
+                                        } else {
+                                            stringResource(R.string.qty)
+                                        },
                                     )
                                 },
-                                trailingContent = {
-                                    TextButton(
-                                        onClick = {
-                                            vm.updateNewSaleDraft { d ->
-                                                d.copy(cart = d.cart.filterIndexed { i, _ -> i != index })
-                                            }
-                                        },
-                                    ) {
-                                        Text("X", color = MaterialTheme.colorScheme.error)
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                numericLtr = true,
+                            )
+                            RetailTextField(
+                                value = unitPriceText,
+                                onValueChange = { value -> vm.updateNewSaleDraft { it.copy(unitPriceText = value) } },
+                                label = { Text(stringResource(R.string.unit_price_editable)) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                numericLtr = true,
+                            )
+                            RetailPrimaryButton(
+                                onClick = {
+                                    val item = selectedItem ?: return@RetailPrimaryButton
+                                    val q = qty.toDoubleOrNull() ?: return@RetailPrimaryButton
+                                    val price = Money.round(
+                                        unitPriceText.toDoubleOrNull() ?: vm.unitPriceForSale(item, installment = credit),
+                                    )
+                                    if (q <= 0.0) return@RetailPrimaryButton
+                                    vm.updateNewSaleDraft { d ->
+                                        d.copy(
+                                            cart = d.cart + SaleCartLineDraft(item.id, item.title, q, price),
+                                            qty = "1",
+                                        )
                                     }
                                 },
-                            )
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = selectedItem != null,
+                            ) { Text(stringResource(R.string.add_line)) }
+                            if (selectedItem == null && items.isNotEmpty()) {
+                                Text(
+                                    stringResource(R.string.sale_need_item),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
-                Text(
-                    "${stringResource(R.string.total)}: ${Money.format(cartTotal)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-                if (!canSubmit) {
+
+                item(key = "cart_header") {
                     Text(
-                        when {
-                            dateError -> stringResource(R.string.sale_invalid_date)
-                            buyer.isBlank() -> stringResource(R.string.sale_need_buyer)
-                            cart.isEmpty() -> stringResource(R.string.sale_need_cart)
-                            else -> ""
-                        },
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(bottom = 4.dp),
+                        stringResource(R.string.cart),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                RetailPrimaryButton(
-                    onClick = {
-                        val parsed = JalaliDate.parse(jalaliDate)
-                        if (parsed == null) {
-                            dateError = true
-                            return@RetailPrimaryButton
-                        }
-                        if (cart.isEmpty() || buyer.isBlank()) return@RetailPrimaryButton
-                        val createdAt = parsed.toGregorianEpochMs()
-                        val due = if (credit) createdAt + 7L * 24 * 60 * 60 * 1000 else null
-                        val lines = cart.mapNotNull { line ->
-                            val item = items.firstOrNull { it.id == line.itemId } ?: return@mapNotNull null
-                            ShopRepository.CartLine(item, line.quantity, line.unitPrice)
-                        }
-                        if (lines.size != cart.size) return@RetailPrimaryButton
-                        vm.recordSale(
-                            buyer = buyer.trim(),
-                            type = if (credit) PaymentType.CREDIT else PaymentType.CASH,
-                            lines = lines,
-                            dueMs = due,
-                            jalaliDate = parsed.format(),
-                            createdAtEpochMs = createdAt,
+
+                items(cart.size) { index ->
+                    val line = cart[index]
+                    RetailCard {
+                        ListItem(
+                            headlineContent = {
+                                Text(line.title, color = MaterialTheme.colorScheme.onSurface)
+                            },
+                            supportingContent = {
+                                Text(
+                                    "${line.quantity} × ${Money.format(line.unitPrice)} = ${Money.format(line.quantity * line.unitPrice)}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            trailingContent = {
+                                IconButton(
+                                    onClick = {
+                                        vm.updateNewSaleDraft { d ->
+                                            d.copy(cart = d.cart.filterIndexed { i, _ -> i != index })
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.delete),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            },
                         )
-                        vm.clearNewSaleDraft()
-                        onBack()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = canSubmit,
-                ) { Text(stringResource(R.string.record_sale)) }
+                    }
+                }
+
+                item(key = "cart_footer") {
+                    Text(
+                        "${stringResource(R.string.total)}: ${Money.format(cartTotal)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                    if (!canSubmit) {
+                        Text(
+                            when {
+                                dateError -> stringResource(R.string.sale_invalid_date)
+                                buyer.isBlank() -> stringResource(R.string.sale_need_buyer)
+                                cart.isEmpty() -> stringResource(R.string.sale_need_cart)
+                                else -> ""
+                            },
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
+                    RetailPrimaryButton(
+                        onClick = {
+                            val parsed = JalaliDate.parse(jalaliDate)
+                            if (parsed == null) {
+                                dateError = true
+                                return@RetailPrimaryButton
+                            }
+                            if (cart.isEmpty() || buyer.isBlank()) return@RetailPrimaryButton
+                            val createdAt = parsed.toGregorianEpochMs()
+                            val dueDays = (dueDaysText.toLongOrNull() ?: 7L).coerceAtLeast(1L)
+                            val due = if (credit) createdAt + dueDays * 24L * 60 * 60 * 1000 else null
+                            val lines = cart.mapNotNull { line ->
+                                val item = items.firstOrNull { it.id == line.itemId } ?: return@mapNotNull null
+                                ShopRepository.CartLine(item, line.quantity, line.unitPrice)
+                            }
+                            if (lines.size != cart.size) return@RetailPrimaryButton
+                            vm.recordSale(
+                                buyer = buyer.trim(),
+                                type = if (credit) PaymentType.CREDIT else PaymentType.CASH,
+                                lines = lines,
+                                dueMs = due,
+                                jalaliDate = parsed.format(),
+                                createdAtEpochMs = createdAt,
+                            )
+                            vm.clearNewSaleDraft()
+                            onBack()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = canSubmit,
+                    ) { Text(stringResource(R.string.record_sale)) }
+                    Spacer(Modifier.height(48.dp))
+                }
             }
         }
     }
@@ -1930,93 +2321,191 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
 @Composable
 fun CreditsScreen(vm: AppViewModel, onBack: () -> Unit) {
     val credits by vm.openCredits.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     var payAmount by rememberSaveable { mutableStateOf("") }
     var reason by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showSelectHint by rememberSaveable { mutableStateOf(false) }
+    var showAmountHint by rememberSaveable { mutableStateOf(false) }
+    var showReasonHint by rememberSaveable { mutableStateOf(false) }
+    var confirmZero by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(credits) {
+        if (selectedId != null && credits.none { it.id == selectedId }) {
+            selectedId = null
+        }
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.credits)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.credits),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
-        Column(Modifier.padding(pad).padding(16.dp)) {
-            RetailCard(Modifier.weight(1f, fill = true)) {
-                LazyColumn {
-                    items(credits, key = { it.id }) { sale ->
-                        val selected = selectedId == sale.id
-                        ListItem(
-                            headlineContent = {
-                                Text(sale.buyerName, color = MaterialTheme.colorScheme.onSurface)
-                            },
-                            supportingContent = {
-                                Text(
-                                    Money.format(sale.openBalance),
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                )
-                            },
-                            modifier = Modifier
-                                .clickable { selectedId = sale.id; showSelectHint = false }
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-                                    else MaterialTheme.colorScheme.surface,
-                                ),
-                        )
-                        RetailDivider()
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .padding(16.dp)
+                .fillMaxSize()
+                .imePadding(),
+        ) {
+            if (credits.isEmpty()) {
+                Box(modifier = Modifier.weight(1f, fill = true), contentAlignment = Alignment.Center) {
+                    com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                        icon = Icons.Outlined.Payments,
+                        title = stringResource(R.string.no_credits),
+                    )
+                }
+            } else {
+                RetailCard(Modifier.weight(1f, fill = true)) {
+                    LazyColumn {
+                        items(credits, key = { it.id }) { sale ->
+                            val selected = selectedId == sale.id
+                            val dueStr = sale.dueAtEpochMs?.let { JalaliDate.fromEpochMs(it).format() }
+                            ListItem(
+                                headlineContent = {
+                                    Text(sale.buyerName, color = MaterialTheme.colorScheme.onSurface)
+                                },
+                                supportingContent = {
+                                    Text(
+                                        buildString {
+                                            append("${Money.format(sale.openBalance)} ${settings.currencyCode}")
+                                            append(" · ${sale.jalaliDate}")
+                                            if (dueStr != null) {
+                                                append(" · ${stringResource(R.string.due_date)}: $dueStr")
+                                            }
+                                        },
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                },
+                                modifier = Modifier
+                                    .clickable {
+                                        selectedId = sale.id
+                                        showSelectHint = false
+                                    }
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+                                        else MaterialTheme.colorScheme.surface,
+                                    ),
+                            )
+                            RetailDivider()
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
             if (showSelectHint) {
-                Text(stringResource(R.string.select_credit), color = MaterialTheme.colorScheme.error)
+                Text(
+                    stringResource(R.string.select_credit),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (showAmountHint) {
+                Text(
+                    stringResource(R.string.amount_required),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             RetailTextField(
                 value = payAmount,
-                onValueChange = { payAmount = it },
+                onValueChange = {
+                    payAmount = it
+                    showAmountHint = false
+                },
                 label = { Text(stringResource(R.string.partial_payment)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 numericLtr = true,
             )
-            Button(
+            RetailPrimaryButton(
                 onClick = {
                     val id = selectedId
                     if (id == null) {
                         showSelectHint = true
-                        return@Button
+                        return@RetailPrimaryButton
                     }
-                    vm.partialPay(id, payAmount.toDoubleOrNull() ?: 0.0)
+                    val amt = payAmount.toDoubleOrNull() ?: 0.0
+                    if (amt <= 0.0) {
+                        showAmountHint = true
+                        return@RetailPrimaryButton
+                    }
+                    vm.partialPay(id, amt)
                     payAmount = ""
                 },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                shape = RoundedCornerShape(14.dp),
             ) { Text(stringResource(R.string.partial_payment)) }
             Spacer(Modifier.height(8.dp))
+            if (showReasonHint) {
+                Text(
+                    stringResource(R.string.reason_required),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             RetailTextField(
                 value = reason,
-                onValueChange = { reason = it },
+                onValueChange = {
+                    reason = it
+                    showReasonHint = false
+                },
                 label = { Text(stringResource(R.string.reason)) },
             )
-            OutlinedButton(
+            RetailOutlinedButton(
                 onClick = {
-                    val id = selectedId ?: return@OutlinedButton
-                    vm.zeroBalance(id, reason)
-                    reason = ""
+                    val id = selectedId
+                    if (id == null) {
+                        showSelectHint = true
+                        return@RetailOutlinedButton
+                    }
+                    if (reason.isBlank()) {
+                        showReasonHint = true
+                        return@RetailOutlinedButton
+                    }
+                    confirmZero = true
                 },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                shape = RoundedCornerShape(14.dp),
             ) { Text(stringResource(R.string.zero_balance)) }
         }
+    }
+
+    if (confirmZero) {
+        val scheme = MaterialTheme.colorScheme
+        AlertDialog(
+            onDismissRequest = { confirmZero = false },
+            containerColor = scheme.surface,
+            titleContentColor = scheme.onSurface,
+            textContentColor = scheme.onSurface,
+            title = {
+                Text(stringResource(R.string.zero_balance), color = scheme.onSurface)
+            },
+            text = {
+                Text(stringResource(R.string.confirm_delete), color = scheme.onSurface)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = selectedId
+                        if (id != null && reason.isNotBlank()) {
+                            vm.zeroBalance(id, reason.trim())
+                            reason = ""
+                        }
+                        confirmZero = false
+                    },
+                ) {
+                    Text(stringResource(R.string.ok), color = scheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmZero = false }) {
+                    Text(stringResource(R.string.cancel), color = scheme.primary)
+                }
+            },
+        )
     }
 }
 
@@ -2047,18 +2536,9 @@ fun ReportsScreen(
     Scaffold(
         topBar = {
             if (!embedded) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.reports)) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                        }
-                    },
+                com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                    title = stringResource(R.string.reports),
+                    onBack = onBack,
                 )
             }
         },
@@ -2092,14 +2572,15 @@ fun ReportsScreen(
                     }
                 }
             }
-            if (report.groups.isEmpty()) {
-                Text(
-                    stringResource(R.string.no_sales_in_period),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp),
-                )
-            }
             LazyColumn(Modifier.weight(1f, fill = true)) {
+                if (report.groups.isEmpty()) {
+                    item(key = "no_sales_report") {
+                        com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                            icon = Icons.Outlined.History,
+                            title = stringResource(R.string.no_sales_in_period),
+                        )
+                    }
+                }
                 report.groups.forEach { group ->
                     val catName = if (fa) group.categoryNameFa else group.categoryNameEn
                     item(key = "cat-${group.categoryId}-$catName") {
@@ -2135,7 +2616,7 @@ fun ReportsScreen(
                     }
                     item(key = "sub-${group.categoryId}-$catName") {
                         Text(
-                            "${stringResource(R.string.category_subtotal)}: ${Money.format(group.subtotal)}",
+                            "${stringResource(R.string.category_subtotal)}: ${Money.format(group.subtotal)} ${settings.currencyCode}",
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(bottom = 8.dp),
@@ -2145,7 +2626,7 @@ fun ReportsScreen(
             }
             RetailCard {
                 Text(
-                    "${stringResource(R.string.grand_total)}: ${Money.format(report.grandTotal)}",
+                    "${stringResource(R.string.grand_total)}: ${Money.format(report.grandTotal)} ${settings.currencyCode}",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -2159,19 +2640,53 @@ fun ReportsScreen(
 @Composable
 fun LowStockScreen(vm: AppViewModel, onBack: () -> Unit) {
     val items by vm.lowStock.collectAsStateWithLifecycle()
+    val units by vm.units.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val fa = settings.languageTag.ifBlank { "fa" }.startsWith("fa")
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.low_stock)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.low_stock),
+                onBack = onBack,
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
-        LazyColumn(Modifier.padding(pad)) {
-            items(items, key = { it.id }) { item ->
-                ListItem(headlineContent = { Text(item.title) }, supportingContent = { Text("${item.stockQty} / ${item.lowStockThreshold}") })
+        if (items.isEmpty()) {
+            com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                icon = Icons.Outlined.WarningAmber,
+                title = stringResource(R.string.no_low_stock),
+                modifier = Modifier.padding(pad),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(pad).padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+                items(items, key = { it.id }) { item ->
+                    val unitName = units.firstOrNull { it.id == item.unitId }?.let {
+                        if (fa) it.nameFa else it.nameEn
+                    }
+                    RetailCard {
+                        ListItem(
+                            leadingContent = { ItemThumb(item.imageUri) },
+                            headlineContent = {
+                                Text(item.title, color = MaterialTheme.colorScheme.onSurface)
+                            },
+                            supportingContent = {
+                                Text(
+                                    buildString {
+                                        append("${stringResource(R.string.stock)}: ${item.stockQty} / ${item.lowStockThreshold}")
+                                        if (!unitName.isNullOrBlank()) append(" ($unitName)")
+                                    },
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -2181,23 +2696,51 @@ fun LowStockScreen(vm: AppViewModel, onBack: () -> Unit) {
 @Composable
 fun RemindersScreen(vm: AppViewModel, onBack: () -> Unit) {
     val reminders by vm.reminders.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.loadReminders() }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.reminders)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.reminders),
+                onBack = onBack,
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
-        LazyColumn(Modifier.padding(pad)) {
-            items(reminders, key = { it.id }) { sale ->
-                ListItem(
-                    headlineContent = { Text(sale.buyerName) },
-                    supportingContent = { Text(Money.format(sale.openBalance)) },
-                )
+        if (reminders.isEmpty()) {
+            com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                icon = Icons.Outlined.Notifications,
+                title = stringResource(R.string.no_reminders),
+                modifier = Modifier.padding(pad),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(pad).padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+                items(reminders, key = { it.id }) { sale ->
+                    val dueStr = sale.dueAtEpochMs?.let { JalaliDate.fromEpochMs(it).format() }
+                    RetailCard {
+                        ListItem(
+                            headlineContent = {
+                                Text(sale.buyerName, color = MaterialTheme.colorScheme.onSurface)
+                            },
+                            supportingContent = {
+                                Text(
+                                    buildString {
+                                        append("${stringResource(R.string.open_balance)}: ${Money.format(sale.openBalance)} ${settings.currencyCode}")
+                                        if (dueStr != null) {
+                                            append(" · ${stringResource(R.string.due_date)}: $dueStr")
+                                        }
+                                    },
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -2208,27 +2751,60 @@ fun RemindersScreen(vm: AppViewModel, onBack: () -> Unit) {
 fun BackupScreen(vm: AppViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val msg by vm.backupMessage.collectAsStateWithLifecycle()
+    val createDocLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        if (uri != null) vm.exportToUri(uri)
+    }
+    val openDocLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) vm.importFromUri(uri)
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.backup)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.backup),
+                onBack = onBack,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
-        Column(Modifier.padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             RetailCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
+                    RetailPrimaryButton(
+                        onClick = {
+                            createDocLauncher.launch(
+                                com.kalaban.farshidb2011.data.backup.KalabanBackupArchive.FILE_NAME,
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        Icon(Icons.Outlined.FileUpload, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.export_to_file))
+                    }
+                    RetailOutlinedButton(
+                        onClick = {
+                            openDocLauncher.launch(arrayOf("*/*"))
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        Icon(Icons.Outlined.FileDownload, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.import_from_file))
+                    }
+                    RetailDivider()
+                    RetailOutlinedButton(
                         onClick = {
                             val file = File(
                                 context.filesDir,
@@ -2236,14 +2812,11 @@ fun BackupScreen(vm: AppViewModel, onBack: () -> Unit) {
                             )
                             vm.exportTo(file)
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {
-                        Icon(Icons.Outlined.FileUpload, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.export_data))
+                        Text(stringResource(R.string.quick_local_backup))
                     }
-                    OutlinedButton(
+                    RetailOutlinedButton(
                         onClick = {
                             val kalb = File(
                                 context.filesDir,
@@ -2255,17 +2828,20 @@ fun BackupScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 legacyJson.exists() -> vm.importFrom(legacyJson)
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {
-                        Icon(Icons.Outlined.FileDownload, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.import_data))
+                        Text(stringResource(R.string.quick_local_restore))
                     }
                 }
             }
             msg?.let {
-                Text(it, color = MaterialTheme.colorScheme.onSurface)
+                RetailCard {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
         }
     }
@@ -2280,17 +2856,9 @@ fun DollarHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.dollar_history)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
-                },
+            com.kalaban.farshidb2011.ui.components.RetailTopAppBar(
+                title = stringResource(R.string.dollar_history),
+                onBack = onBack,
                 actions = {
                     IconButton(
                         onClick = { confirmClear = true },
@@ -2307,32 +2875,46 @@ fun DollarHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
-        LazyColumn(Modifier.padding(pad).padding(horizontal = 12.dp)) {
-            items(history, key = { it.id }) { row ->
-                val whenText = if (fa) {
-                    JalaliDate.fromEpochMs(row.recordedAtEpochMs).format()
-                } else {
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(row.recordedAtEpochMs))
-                }
-                val noteText = when (row.note?.trim()?.lowercase()) {
-                    null, "" -> null
-                    "initial" -> stringResource(R.string.dollar_note_initial)
-                    "settings_update", "setting_update", "setting update", "settings update" ->
-                        stringResource(R.string.dollar_note_settings_update)
-                    else -> row.note
-                }
-                RetailCard {
-                    ListItem(
-                        headlineContent = {
-                            Text(Money.format(row.rate), color = MaterialTheme.colorScheme.onSurface)
-                        },
-                        supportingContent = {
-                            Text(
-                                whenText + (noteText?.let { " · $it" } ?: ""),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
+        if (history.isEmpty()) {
+            com.kalaban.farshidb2011.ui.components.RetailEmptyState(
+                icon = Icons.Outlined.History,
+                title = stringResource(R.string.no_dollar_history),
+                modifier = Modifier.padding(pad),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(pad).padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+                items(history, key = { it.id }) { row ->
+                    val whenText = if (fa) {
+                        JalaliDate.fromEpochMs(row.recordedAtEpochMs).format()
+                    } else {
+                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(row.recordedAtEpochMs))
+                    }
+                    val noteText = when (row.note?.trim()?.lowercase()) {
+                        null, "" -> null
+                        "initial" -> stringResource(R.string.dollar_note_initial)
+                        "settings_update", "setting_update", "setting update", "settings update" ->
+                            stringResource(R.string.dollar_note_settings_update)
+                        else -> row.note
+                    }
+                    RetailCard {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    "${Money.format(row.rate)} ${settings.currencyCode}",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    whenText + (noteText?.let { " · $it" } ?: ""),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }

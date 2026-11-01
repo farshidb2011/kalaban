@@ -158,6 +158,9 @@ interface SaleLineDao {
     @Query("SELECT * FROM sale_lines WHERE saleId = :saleId")
     suspend fun getForSale(saleId: Long): List<SaleLineEntity>
 
+    @Query("SELECT * FROM sale_lines WHERE saleId = :saleId")
+    fun observeForSale(saleId: Long): Flow<List<SaleLineEntity>>
+
     @Insert
     suspend fun insertAll(lines: List<SaleLineEntity>)
 

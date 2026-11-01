@@ -67,8 +67,21 @@ object JalaliDate {
         val y = parts[0].toIntOrNull() ?: return null
         val m = parts[1].toIntOrNull() ?: return null
         val d = parts[2].toIntOrNull() ?: return null
-        if (m !in 1..12 || d !in 1..31 || y < 1300) return null
+        if (y !in 1300..1500 || m !in 1..12) return null
+        val maxDay = when {
+            m <= 6 -> 31
+            m <= 11 -> 30
+            else -> if (isLeapYear(y)) 30 else 29
+        }
+        if (d !in 1..maxDay) return null
         return Date(y, m, d)
+    }
+
+    fun isLeapYear(jy: Int): Boolean {
+        val y1 = Date(jy, 12, 1).toGregorianEpochMs(TimeZone.getTimeZone("UTC"))
+        val y2 = Date(jy + 1, 1, 1).toGregorianEpochMs(TimeZone.getTimeZone("UTC"))
+        val days = Math.round((y2 - y1) / (24.0 * 60 * 60 * 1000)).toInt()
+        return days == 30
     }
 
     fun today(timeZone: TimeZone = TimeZone.getDefault()): Date {

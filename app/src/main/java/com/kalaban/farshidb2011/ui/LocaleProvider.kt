@@ -18,9 +18,10 @@ fun AppLocaleProvider(
 ) {
     val tag = languageTag.ifBlank { "fa" }
     val base = LocalContext.current
-    val localizedContext = remember(tag, base) {
+    val baseConfiguration = LocalConfiguration.current
+    val localizedContext = remember(tag, base, baseConfiguration) {
         val locale = Locale.forLanguageTag(tag)
-        val config = Configuration(base.resources.configuration)
+        val config = Configuration(baseConfiguration)
         config.setLocale(locale)
         config.setLayoutDirection(locale)
         val configContext = base.createConfigurationContext(config)

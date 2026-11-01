@@ -24,6 +24,18 @@ class MainActivityInstrumentedTest {
 
     @Test
     fun home_showsDisplayPanel() {
-        composeRule.onNodeWithText("Display", substring = true).assertIsDisplayed()
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val faTitle = "پنل نمایش"
+        val enTitle = "Display"
+        // Default landing screen is DisplayPanel (Persian by default, English if switched)
+        val hasDisplay = runCatching {
+            composeRule.onNodeWithText(faTitle, substring = true).assertIsDisplayed()
+            true
+        }.getOrElse {
+            composeRule.onNodeWithText(enTitle, substring = true).assertIsDisplayed()
+            true
+        }
+        assertEquals(true, hasDisplay)
+        assertEquals("com.kalaban.farshidb2011", appContext.packageName)
     }
 }
