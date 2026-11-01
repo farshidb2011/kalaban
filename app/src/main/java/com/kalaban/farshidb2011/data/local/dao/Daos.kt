@@ -1,0 +1,178 @@
+package com.kalaban.farshidb2011.data.local.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import com.kalaban.farshidb2011.data.local.entity.CategoryEntity
+import com.kalaban.farshidb2011.data.local.entity.DollarRateHistoryEntity
+import com.kalaban.farshidb2011.data.local.entity.ItemEntity
+import com.kalaban.farshidb2011.data.local.entity.SaleEntity
+import com.kalaban.farshidb2011.data.local.entity.SaleLineEntity
+import com.kalaban.farshidb2011.data.local.entity.SalePaymentEntity
+import com.kalaban.farshidb2011.data.local.entity.SettingsEntity
+import com.kalaban.farshidb2011.data.local.entity.UnitEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface UnitDao {
+    @Query("SELECT * FROM units ORDER BY nameFa")
+    fun observeAll(): Flow<List<UnitEntity>>
+
+    @Query("SELECT * FROM units ORDER BY nameFa")
+    suspend fun getAll(): List<UnitEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(unit: UnitEntity): Long
+
+    @Update
+    suspend fun update(unit: UnitEntity)
+
+    @Query("DELETE FROM units WHERE id = :id")
+    suspend fun delete(id: Long)
+}
+
+@Dao
+interface CategoryDao {
+    @Query("SELECT * FROM categories ORDER BY nameFa")
+    fun observeAll(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories ORDER BY nameFa")
+    suspend fun getAll(): List<CategoryEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(category: CategoryEntity): Long
+
+    @Update
+    suspend fun update(category: CategoryEntity)
+
+    @Query("DELETE FROM categories WHERE id = :id")
+    suspend fun delete(id: Long)
+}
+
+@Dao
+interface ItemDao {
+    @Query(
+        """
+        SELECT * FROM items
+        WHERE (:query = '' OR title LIKE '%' || :query || '%' OR IFNULL(sku,'') LIKE '%' || :query || '%')
+        ORDER BY title
+        """,
+    )
+    fun observeSearch(query: String): Flow<List<ItemEntity>>
+
+    @Query("SELECT * FROM items WHERE id = :id")
+    suspend fun getById(id: Long): ItemEntity?
+
+    @Query("SELECT * FROM items WHERE stockQty <= lowStockThreshold AND lowStockThreshold > 0")
+    fun observeLowStock(): Flow<List<ItemEntity>>
+
+    @Query("SELECT * FROM items")
+    suspend fun getAll(): List<ItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(item: ItemEntity): Long
+
+    @Update
+    suspend fun update(item: ItemEntity)
+
+    @Query("UPDATE items SET sellPrice = :sellPrice, updatedAtEpochMs = :updatedAt WHERE id = :id")
+    suspend fun updateSellPrice(id: Long, sellPrice: Double, updatedAt: Long)
+
+    @Query("DELETE FROM items WHERE id = :id")
+    suspend fun delete(id: Long)
+}
+
+@Dao
+interface SettingsDao {
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    fun observe(): Flow<SettingsEntity?>
+
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    suspend fun get(): SettingsEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(settings: SettingsEntity)
+}
+
+@Dao
+interface DollarRateHistoryDao {
+    @Query("SELECT * FROM dollar_rate_history ORDER BY recordedAtEpochMs DESC")
+    fun observeAll(): Flow<List<DollarRateHistoryEntity>>
+
+    @Insert
+    suspend fun insert(row: DollarRateHistoryEntity): Long
+
+    @Query("SELECT * FROM dollar_rate_history ORDER BY recordedAtEpochMs DESC")
+    suspend fun getAll(): List<DollarRateHistoryEntity>
+
+    @Query("DELETE FROM dollar_rate_history")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface SaleDao {
+    @Query("SELECT * FROM sales ORDER BY createdAtEpochMs DESC")
+    fun observeAll(): Flow<List<SaleEntity>>
+
+    @Query("SELECT * FROM sales WHERE id = :id")
+    suspend fun getById(id: Long): SaleEntity?
+
+    @Query(
+        """
+        SELECT * FROM sales
+        WHERE createdAtEpochMs BETWEEN :fromEpochMs AND :toEpochMs
+        ORDER BY createdAtEpochMs DESC
+        """,
+    )
+    suspend fun getInRange(fromEpochMs: Long, toEpochMs: Long): List<SaleEntity>
+
+    @Query("SELECT * FROM sales WHERE paymentType = 'CREDIT' AND openBalance > 0 AND manuallyZeroed = 0")
+    fun observeOpenCredits(): Flow<List<SaleEntity>>
+
+    @Query(
+        """
+        SELECT * FROM sales
+        WHERE paymentType = 'CREDIT'
+          AND openBalance > 0
+          AND manuallyZeroed = 0
+          AND dueAtEpochMs IS NOT NULL
+          AND dueAtEpochMs BETWEEN :fromEpochMs AND :toEpochMs
+        """,
+    )
+    suspend fun getDueBetween(fromEpochMs: Long, toEpochMs: Long): List<SaleEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(sale: SaleEntity): Long
+
+    @Update
+    suspend fun update(sale: SaleEntity)
+
+    @Query("SELECT * FROM sales")
+    suspend fun getAll(): List<SaleEntity>
+}
+
+@Dao
+interface SaleLineDao {
+    @Query("SELECT * FROM sale_lines WHERE saleId = :saleId")
+    suspend fun getForSale(saleId: Long): List<SaleLineEntity>
+
+    @Insert
+    suspend fun insertAll(lines: List<SaleLineEntity>)
+
+    @Query("SELECT * FROM sale_lines")
+    suspend fun getAll(): List<SaleLineEntity>
+}
+
+@Dao
+interface SalePaymentDao {
+    @Query("SELECT * FROM sale_payments WHERE saleId = :saleId ORDER BY paidAtEpochMs")
+    fun observeForSale(saleId: Long): Flow<List<SalePaymentEntity>>
+
+    @Insert
+    suspend fun insert(payment: SalePaymentEntity): Long
+
+    @Query("SELECT * FROM sale_payments")
+    suspend fun getAll(): List<SalePaymentEntity>
+}

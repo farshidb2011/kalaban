@@ -3,5 +3,9 @@
     public void *(android.view.View);
 }
 
-# Compose runtime / Material3 are covered by consumer ProGuard rules from the libraries.
-# Add app-specific keep rules here as needed.
+-keep class com.kalaban.farshidb2011.data.local.entity.** { *; }
+-keep class com.kalaban.farshidb2011.data.repository.ShopRepository$BackupPayload { *; }
+-keepattributes Signature
+-keepclassmembers class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}

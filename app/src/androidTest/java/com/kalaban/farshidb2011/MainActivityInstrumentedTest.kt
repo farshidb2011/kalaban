@@ -23,7 +23,7 @@ class MainActivityInstrumentedTest {
     }
 
     @Test
-    fun starterScreen_showsAppName() {
-        composeRule.onNodeWithText("Kalaban").assertIsDisplayed()
+    fun home_showsDisplayPanel() {
+        composeRule.onNodeWithText("Display", substring = true).assertIsDisplayed()
     }
 }
