@@ -1,6 +1,7 @@
 package com.kalaban.farshidb2011.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -76,6 +77,7 @@ object ShopWorkers {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
+    @SuppressLint("MissingPermission") // guarded by [canNotify] / POST_NOTIFICATIONS on API 33+
     fun notify(context: Context, id: Int, title: String, text: String) {
         if (!canNotify(context)) return
         ensureChannel(context)

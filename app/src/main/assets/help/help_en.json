@@ -1,1 +1,436 @@
-{"articles":[{"id":"getting_started","title":"Getting started","summary":"Display and admin panels","keywords":["start","pin"],"sections":[{"heading":"Overview","paragraphs":["Kalaban has a customer display panel and an admin panel."],"steps":["Open admin with PIN","Use bottom tabs"],"tips":["Keep a backup"]}]}]}
+{
+  "articles": [
+    {
+      "id": "getting_started",
+      "title": "Getting started",
+      "summary": "Display panel, admin unlock, and bottom tabs",
+      "keywords": [
+        "start",
+        "pin",
+        "display",
+        "admin",
+        "tabs"
+      ],
+      "sections": [
+        {
+          "heading": "Two panels",
+          "paragraphs": [
+            "Kalaban is an offline shop manager. The landing screen is the customer display for fast price lookup. Admin opens with a PIN (or the owner's fingerprint)."
+          ],
+          "steps": [
+            "Tap admin unlock and enter the PIN",
+            "On first use, set the owner PIN once",
+            "Use the five bottom tabs: Dashboard, Products, Sales, Reports, Manage"
+          ],
+          "tips": [
+            "With no extra users, the experience stays single-owner like before",
+            "Signing out returns you to the display panel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "summary": "Cards, alerts, and quick actions",
+      "keywords": [
+        "dashboard",
+        "alert",
+        "today"
+      ],
+      "sections": [
+        {
+          "heading": "Today at a glance",
+          "paragraphs": [
+            "The dashboard summarizes today and month sales, low stock, thin margins, and overdue chores such as backups or outdated prices."
+          ],
+          "steps": [
+            "Tap cards to jump into reports or products",
+            "Work through alerts one by one",
+            "Use quick actions for a new sale or import"
+          ],
+          "tips": [
+            "If a recalculation banner appears after a dollar-rate change, preview first, then apply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "products",
+      "title": "Products",
+      "summary": "Create, edit, archive, search, and bulk actions",
+      "keywords": [
+        "product",
+        "sku",
+        "barcode",
+        "archive",
+        "image"
+      ],
+      "sections": [
+        {
+          "heading": "List and detail",
+          "paragraphs": [
+            "The products tab supports search, filters, sorting, and multi-select. Product detail shows a step-by-step price breakdown and history."
+          ],
+          "steps": [
+            "Create a product and attach a camera or gallery image",
+            "Sold products stay editable; purchase dollar rate is kept unless purchase price changes",
+            "Bulk delete skips items that already have sales"
+          ],
+          "tips": [
+            "Prefer archive over delete when you might need the item later",
+            "Duplicate is fastest for close variants"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "categories_units",
+      "title": "Categories, units, attributes",
+      "summary": "Catalog structure and custom fields",
+      "keywords": [
+        "category",
+        "unit",
+        "attribute",
+        "attr"
+      ],
+      "sections": [
+        {
+          "heading": "Structure",
+          "paragraphs": [
+            "Categories and units are independent entities. Custom attributes live on products; numeric ones are available in formulas as attr_<key>."
+          ],
+          "steps": [
+            "Create categories/units from Manage",
+            "Define attributes with a stable key",
+            "Fill attribute values on each product"
+          ],
+          "tips": [
+            "Keep attribute keys short so formulas stay readable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pricing",
+      "title": "Pricing rules",
+      "summary": "Dollar link, extras, methods, rounding, bounds",
+      "keywords": [
+        "price",
+        "dollar",
+        "overhead",
+        "markup",
+        "margin"
+      ],
+      "sections": [
+        {
+          "heading": "Version 3 engine",
+          "paragraphs": [
+            "Full cost = purchase × dollar ratio + transport + packaging + other, then overhead. Methods: auto (legacy dollar rule), formula, markup, margin, fixed profit, manual. With no active formula, results match the old rule.",
+            "Markup adds on cost; margin is profit as a share of sell price. Cash and credit counter prices are derived from the same base."
+          ],
+          "steps": [
+            "Set dollar rate and percents in pricing rules",
+            "Pick each product's method and min/max bounds",
+            "Enable global or step rounding (for example 1000)"
+          ],
+          "tips": [
+            "Saving the dollar rate no longer silently rewrites every price; you get a review prompt",
+            "Persian digits are accepted in numeric fields"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formulas",
+      "title": "Formulas",
+      "summary": "Safe pricing language with versions and tests",
+      "keywords": [
+        "formula",
+        "variable",
+        "function",
+        "condition"
+      ],
+      "sections": [
+        {
+          "heading": "Author and test",
+          "paragraphs": [
+            "Formulas never execute code; they are a bounded math language. Priority, scope (all or one category), and an optional condition choose which formula applies."
+          ],
+          "steps": [
+            "Create a formula and build the expression from the palette",
+            "Test it on a sample product",
+            "Activate it and revert versions if needed"
+          ],
+          "tips": [
+            "Key variables: cost, full_cost, rate, ratio, overhead_pct, manager_pct, profit_pct, tax_pct, min_price, max_price, attr_<key>",
+            "Functions: min max abs round ceil floor roundto clamp pct addpct subpct margin if",
+            "Persian digits and × ÷ are accepted"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bulk_updates",
+      "title": "Bulk price updates",
+      "summary": "Preview, schedule, and rollback",
+      "keywords": [
+        "bulk",
+        "rollback",
+        "schedule"
+      ],
+      "sections": [
+        {
+          "heading": "Change prices safely",
+          "paragraphs": [
+            "Operations: recalculate, percent, amount, factor, set price. Always preview; conflicts are reported. You can schedule for later or roll back from history."
+          ],
+          "steps": [
+            "Choose the scope",
+            "Preview impact including stock profit",
+            "Apply now or schedule"
+          ],
+          "tips": [
+            "After a dollar-rate change, recalculate through this flow",
+            "Rollback may conflict with newer prices"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sales_credits",
+      "title": "Sales and credits",
+      "summary": "Cart, tier discounts, and reminders",
+      "keywords": [
+        "sale",
+        "credit",
+        "discount",
+        "reminder"
+      ],
+      "sections": [
+        {
+          "heading": "Recording a sale",
+          "paragraphs": [
+            "Multi-line carts use the decimal pricing engine and quantity-tier discounts. Each line stores cost, tax, and discount at sale time. Credits support balances, partial payments, zeroing with a reason, and system reminders."
+          ],
+          "steps": [
+            "Search and add products",
+            "Set settlement due days when needed",
+            "Record payments later from sale details"
+          ],
+          "tips": [
+            "Sale-price edits follow role permission",
+            "Warnings appear below minimum or break-even"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "Reports",
+      "summary": "Sales, pricing analysis, and price changes",
+      "keywords": [
+        "report",
+        "margin",
+        "csv"
+      ],
+      "sections": [
+        {
+          "heading": "Three views",
+          "paragraphs": [
+            "Sales shows range totals and profit. Pricing analysis flags thin margins or missing cost and values stock. Price changes show source and user. CSV export opens cleanly in Excel."
+          ],
+          "steps": [
+            "Pick a range",
+            "Filter flags and columns",
+            "Export CSV when needed"
+          ],
+          "tips": [
+            "Profit is most accurate for new sales that stored unit cost"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "import",
+      "title": "CSV import",
+      "summary": "Template, mapping, and duplicates",
+      "keywords": [
+        "import",
+        "csv",
+        "mapping"
+      ],
+      "sections": [
+        {
+          "heading": "File to catalog",
+          "paragraphs": [
+            "Download a template, map columns, preview, and choose duplicate policy (skip / update / create). Error rows can be exported."
+          ],
+          "steps": [
+            "Choose a CSV file",
+            "Map the title column",
+            "Confirm the preview"
+          ],
+          "tips": [
+            "Align the CSV delimiter setting with your file"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "export",
+      "title": "Data export",
+      "summary": "Products, reports, and audit",
+      "keywords": [
+        "export",
+        "excel",
+        "audit"
+      ],
+      "sections": [
+        {
+          "heading": "CSV with BOM",
+          "paragraphs": [
+            "Product, report, and audit exports are CSV so Excel opens them correctly. Native XLSX/PDF is not implemented."
+          ],
+          "steps": [
+            "Export from the relevant screen",
+            "Open the file in Excel or Sheets"
+          ],
+          "tips": [
+            "Keep a product CSV next to your .kalb backup before big changes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "backup",
+      "title": "Backup and restore",
+      "summary": ".kalb files and reminders",
+      "keywords": [
+        "backup",
+        "kalb",
+        "restore"
+      ],
+      "sections": [
+        {
+          "heading": "Protect shop data",
+          "paragraphs": [
+            "Use quick internal backup or save/restore a .kalb file. Restore asks for confirmation and replaces current data, including the audit log inside the backup."
+          ],
+          "steps": [
+            "Backup before installing a new build",
+            "Set backup reminder days in notification settings"
+          ],
+          "tips": [
+            "Never run connectedAndroidTest on a real shop phone; it uninstalls the app"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "users_permissions",
+      "title": "Users and permissions",
+      "summary": "Roles, PINs, and lockout",
+      "keywords": [
+        "user",
+        "role",
+        "permission",
+        "lockout"
+      ],
+      "sections": [
+        {
+          "heading": "Optional multi-user",
+          "paragraphs": [
+            "Built-in roles: Administrator, Store manager, Cashier, Read-only. After five wrong PINs a temporary lockout starts and escalates. Fingerprint always signs in as the owner."
+          ],
+          "steps": [
+            "Create or edit a role with the right permissions",
+            "Give cashiers their own PIN",
+            "Review logins in the audit log"
+          ],
+          "tips": [
+            "The owner role is locked and must not be removed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "summary": "General, pricing, notifications, security",
+      "keywords": [
+        "settings",
+        "notification",
+        "security"
+      ],
+      "sections": [
+        {
+          "heading": "From Manage",
+          "paragraphs": [
+            "Shop profile, number format, pricing rules, stock/profit/credit/schedule alerts, and PIN security live here."
+          ],
+          "steps": [
+            "Fill the shop name for the display panel",
+            "Enable the alerts you need",
+            "Change the owner PIN under security when required"
+          ],
+          "tips": [
+            "Match customer display price mode (base vs cash) to your shop policy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "theme",
+      "title": "Appearance and language",
+      "summary": "System/light/dark and RTL",
+      "keywords": [
+        "theme",
+        "language",
+        "dark"
+      ],
+      "sections": [
+        {
+          "heading": "No restart required",
+          "paragraphs": [
+            "System, light, or dark theme switches without closing the app. Persian is RTL and English is LTR. Visual identity: slate ink, copper, cream."
+          ],
+          "steps": [
+            "Switch theme and walk every tab once",
+            "Switch language and check text direction"
+          ],
+          "tips": [
+            "If strings look wrong after a language change, sign out of admin and back in"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting",
+      "title": "Troubleshooting",
+      "summary": "Common issues and fixes",
+      "keywords": [
+        "error",
+        "price",
+        "notification",
+        "pin",
+        "csv"
+      ],
+      "sections": [
+        {
+          "heading": "When something fails",
+          "paragraphs": [
+            "Price not updating: bulk recalculate or the post-dollar review. Formula error: use Test. CSV rejected: check mapping and duplicates. No notification: grant notification permission and relax battery optimizations. Forgotten PIN: there is no cloud reset; recover via backup/restore or a clean device setup."
+          ],
+          "steps": [
+            "Check the audit log for the last actions",
+            "Take a fresh backup if data integrity is in doubt"
+          ],
+          "tips": [
+            "WorkManager may delay scheduled jobs on aggressive OEMs"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PriceChange
 import androidx.compose.material.icons.outlined.SelectAll
-import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -254,7 +254,7 @@ fun ProductsScreen(
                     }
                     item {
                         Box {
-                            IconButton(onClick = { sortMenu = true }) { Icon(Icons.Outlined.Sort, stringResource(R.string.sort)) }
+                            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort)) }
                             DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                                 listOf(
                                     ProductSort.TITLE to R.string.sort_title,

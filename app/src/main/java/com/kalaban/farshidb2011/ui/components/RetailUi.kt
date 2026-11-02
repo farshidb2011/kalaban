@@ -340,36 +340,6 @@ fun RetailDivider(modifier: Modifier = Modifier) {
     )
 }
 
-@Composable
-fun RetailMenuRow(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
 
 @Composable
 fun RetailBottomTab(
@@ -454,44 +424,6 @@ fun RetailFilterChip(
     )
 }
 
-/** Report period selector — filled retail tiles, not plain AssistChips. */
-@Composable
-fun RetailPeriodChip(
-    selected: Boolean,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val bg = if (selected) scheme.tertiary else scheme.surface
-    val fg = if (selected) scheme.onTertiary else scheme.onSurface
-    val border = if (selected) scheme.tertiary else scheme.outline.copy(alpha = 0.35f)
-    Surface(
-        onClick = onClick,
-        modifier = modifier.defaultMinSize(minWidth = 104.dp, minHeight = 44.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = bg,
-        contentColor = fg,
-        border = BorderStroke(1.5.dp, border),
-        tonalElevation = if (selected) 0.dp else 1.dp,
-        shadowElevation = if (selected) 3.dp else 0.dp,
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                ),
-                color = fg,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -619,34 +551,3 @@ fun HelpIconButton(helpText: String) {
     }
 }
 
-@Composable
-fun SuccessDialog(message: String, onDismiss: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = scheme.surface,
-        titleContentColor = scheme.onSurface,
-        textContentColor = scheme.onSurface,
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    androidx.compose.ui.res.stringResource(R.string.ok),
-                    color = scheme.primary,
-                )
-            }
-        },
-        title = {
-            CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
-                Text(
-                    androidx.compose.ui.res.stringResource(R.string.done_title),
-                    color = scheme.onSurface,
-                )
-            }
-        },
-        text = {
-            CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
-                Text(message, color = scheme.onSurface)
-            }
-        },
-    )
-}

@@ -78,8 +78,8 @@ import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
 import com.kalaban.farshidb2011.ui.theme.semantic
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AccountBalance
 
 @Composable
@@ -174,7 +174,7 @@ private fun SalesReportTab(appVm: AppViewModel, reportsVm: ReportsViewModel) {
                     MetricCard(stringResource(R.string.metric_revenue, s.count), Money.format(s.revenue), Icons.Outlined.Payments, Modifier.weight(1f))
                     if (appVm.can(Permission.VIEW_COSTS)) {
                         MetricCard(
-                            stringResource(R.string.net_profit), Money.format(s.profit), Icons.Outlined.TrendingUp, Modifier.weight(1f),
+                            stringResource(R.string.net_profit), Money.format(s.profit), Icons.AutoMirrored.Outlined.TrendingUp, Modifier.weight(1f),
                             tone = if (s.profit.signum() < 0) Tone.DANGER else Tone.SUCCESS,
                         )
                     } else {
@@ -228,7 +228,7 @@ private fun SalesReportTab(appVm: AppViewModel, reportsVm: ReportsViewModel) {
             }
         }
         if (detail.groups.isEmpty() && s != null && s.count == 0) {
-            item { RetailEmptyState(Icons.Outlined.ReceiptLong, stringResource(R.string.no_sales_in_period)) }
+            item { RetailEmptyState(Icons.AutoMirrored.Outlined.ReceiptLong, stringResource(R.string.no_sales_in_period)) }
         }
         detail.groups.forEach { group ->
             item(key = "g-${group.categoryId}-${group.categoryNameFa}") {

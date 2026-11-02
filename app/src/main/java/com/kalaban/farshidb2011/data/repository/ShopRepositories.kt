@@ -271,8 +271,6 @@ class ShopRepository(
         return (dueToday + dueTomorrow).distinctBy { it.id }
     }
 
-    enum class ReportRange { DAILY, WEEKLY, MONTHLY, QUARTERLY, BIANNUAL, YEARLY }
-
     data class SoldItemLine(
         val itemId: Long,
         val itemTitle: String,
@@ -297,27 +295,10 @@ class ShopRepository(
         val grandTotal: Double = 0.0,
     )
 
-    suspend fun salesReport(range: ReportRange): List<SaleEntity> {
-        val now = System.currentTimeMillis()
-        val day = 24L * 60 * 60 * 1000
-        val span = when (range) {
-            ReportRange.DAILY -> day
-            ReportRange.WEEKLY -> 7 * day
-            ReportRange.MONTHLY -> 30 * day
-            ReportRange.QUARTERLY -> 90 * day
-            ReportRange.BIANNUAL -> 182 * day
-            ReportRange.YEARLY -> 365 * day
-        }
-        // Include future-Hour timestamps on today's Jalali date (toGregorianEpochMs sets noon)
-        return db.saleDao().getInRange(now - span, now + day)
-    }
-
     /**
-     * Sold lines in [range], aggregated by item, grouped under each category.
+     * Sold lines in [fromEpochMs]..[toEpochMs], aggregated by item, grouped under each category.
      * Category comes from the current item record (or "uncategorized" if missing).
      */
-    suspend fun detailedSalesReport(range: ReportRange): DetailedSalesReport = groupSales(salesReport(range))
-
     suspend fun detailedSalesReport(fromEpochMs: Long, toEpochMs: Long): DetailedSalesReport =
         groupSales(db.saleDao().getInRange(fromEpochMs, toEpochMs))
 

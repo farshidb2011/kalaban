@@ -1,18 +1,39 @@
 # وضعیت پیاده‌سازی نسخهٔ ۳ کالابان و کارهای باقی‌مانده
 
-> **آخرین به‌روزرسانی:** ۱۴۰۵/۰۸/۱۱ (2026-11-02)
+> **آخرین به‌روزرسانی:** ۱۴۰۵/۰۸/۱۲ (2026-11-03)
 >
-> **وضعیت:** نیمه‌کاره. هستهٔ محاسباتی، لایهٔ داده، مهاجرت دیتابیس، ViewModelها و بیشتر صفحه‌ها نوشته شده‌اند، اما **پروژه فعلاً کامپایل نمی‌شود**، چون هنوز رشته‌های متنی، آیکون‌ها و فایل‌های راهنما اضافه نشده‌اند (جزئیات در بخش «کارهای باقی‌مانده»).
+> **وضعیت:** کارهای برنامه‌ریزی‌شدهٔ بیلد/محتوا/جمع‌وجوری/تست/اسناد **انجام شد**. بیلد دیباگ و ریلیز سبز؛ lint سبز؛ ۳۵ تست واحد پاس؛ راهنما ۱۶ مقاله FA/EN؛ متن‌های UI بازبینی‌شده؛ نصب روی گوشی با مهاجرت موفق به `user_version=3`. 
 >
-> **روی گوشی هنوز نسخهٔ قبلی (دیتابیس نسخهٔ ۲) نصب است.** تا وقتی همهٔ مراحل «راستی‌آزمایی» انجام نشده، نسخهٔ جدید را نصب نکنید.
+> **ماندهٔ آگاهانه:** سناریوهای QA دستی که **پین مالک** می‌خواهند (تم کامل، دلار→rollback، فرمول روی کالای واقعی، نقش فروشنده، ۵ پین اشتباه) و سؤال‌های باز مالک در بخش ۶. موارد خارج از محدوده (XLSX/PDF، approval، اسکن دوربین) عمداً پیاده نشده‌اند.
+>
+> گزارش محصول: [`PRODUCT_REPORT.md`](PRODUCT_REPORT.md) · ران‌بوک: [`RUNBOOK.md`](RUNBOOK.md)
 
-این سند برای ادامهٔ کار در یک نشست جدید نوشته شده است: چه چیزی انجام شده، دقیقاً چه چیزی مانده، با چه دستوری بررسی شود و چه نکات ایمنی‌ای باید رعایت شود.
+این سند برای ادامهٔ کار در یک نشست جدید نوشته شده: چه چیزی انجام شده، دقیقاً چه چیزی مانده، با چه دستوری بررسی شود و چه نکات ایمنی‌ای باید رعایت شود.
 
 ---
 
+## ۰. خلاصهٔ پیشرفت (وضعیت جاری)
+
+| حوزه | وضعیت | توضیح |
+|------|--------|--------|
+| هسته + تست واحد | ✅ | ۳۵ تست پاس (شامل DomainConfigTest) |
+| Room v3 + مهاجرت | ✅ | ابزار Python روی v2 OK؛ روی دستگاه فعلاً v3 |
+| UI/ViewModel صفحات | ✅ | کامپایل و نصب‌شده |
+| سبز کردن بیلد | ✅ | رشته‌ها، آیکون‌ها، import، Switch، lint permission |
+| نصب دیباگ | ✅ | 20261103-002208؛ لانچ بدون کرش بافر crash |
+| کیفیت متن UI | ✅ | پولیش گستردهٔ FA + کلیدهای مهم EN |
+| راهنمای درون‌برنامه | ✅ | ۱۶ مقاله در help_fa/en.json |
+| جمع‌وجوری / dead code | ✅ | AutoMirrored، LocalResources، PricingEngine، BulkRequestCodec، حذف UI مرده |
+| lint + release + تست اضافه | ✅ | lintDebug / assembleRelease / تست‌های خالص |
+| QA دستی با پین مالک | 🟡 | نصب/لانچ/مهاجرت OK؛ سناریوهای پین‌دار با کاربر |
+| README + گزارش نهایی | ✅ | README و PRODUCT_REPORT |
+
+برآورد کلی: کد و محتوای نسخهٔ ۳ برای استفادهٔ عملی آماده است (~۹۰٪). باقی عمدتاً تأیید دستی مالک و تصمیم‌های باز بخش ۶ است.
+
+---
 ## ۱. نکات ایمنی (قبل از هر کاری بخوانید)
 
-1. **دادهٔ واقعی روی گوشی است.** اولین اجرای نسخهٔ ۳ مهاجرت دیتابیس ۲→۳ را اجرا می‌کند. قبل از نصب، حتماً یک پشتیبان تازه بگیرید (پشتیبان قبلی مال ۱۴۰۵/۰۸/۱۱ ساعت ۰۱:۰۳ است و ممکن است داده بعد از آن تغییر کرده باشد):
+1. **دادهٔ واقعی روی گوشی است.** اولین اجرای نسخهٔ ۳ مهاجرت دیتابیس ۲→۳ را اجرا می‌کند. قبل از هر نصب دوباره، حتماً یک پشتیبان تازه بگیرید (پشتیبان قبلی مال ۱۴۰۵/۰۸/۱۱ ساعت ۰۱:۰۳ است و ممکن است داده بعد از آن تغییر کرده باشد):
 
    ```bash
    BK="$HOME/kalaban-device-backups/$(date +%Y%m%d-%H%M%S)" && mkdir -p "$BK" \
@@ -21,7 +42,7 @@
      && tar -tvf "$BK/app-data.tar"
    ```
 
-   پشتیبان قبلی: `~/kalaban-device-backups/20261102-010322/app-data.tar`
+   پشتیبان‌ها: `~/kalaban-device-backups/20261102-010322/app-data.tar` (v2 برای تست مهاجرت) · `~/kalaban-device-backups/20261103-002208/` (بعد از نصب فعلی + اسکرین)
 
 2. **هرگز `connectedAndroidTest` را روی گوشی کاربر اجرا نکنید.** این تسک در پایان، اپ را حذف می‌کند و همهٔ داده‌های فروشگاه از بین می‌رود.
 3. نصب فقط با `adb install -r` باشد (حفظ داده). اگر خطای امضا (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) آمد، **اپ را حذف نکنید** و از کاربر بپرسید.
@@ -127,35 +148,53 @@
   - همهٔ مسیرهای جدید و میزبان سراسری Snackbar.
   - بعد از خروج از حساب، برگشت خودکار به پنل نمایش.
 
+
+### بیلد سبز (۱۴۰۵/۰۸/۱۱→۱۲)
+
+- ۶۳۵ کلید متنی به `values/strings.xml` و `values-fa/strings.xml` اضافه شد؛ بررسی `used ⊆ en` و `en ≡ fa` فعلاً خالی از جاافتادگی است.
+- آیکون‌های `ic_launcher_background/foreground/monochrome`، `ic_stat_kalaban` و adaptive icon در `mipmap-anydpi-v26`.
+- حذف import کهنهٔ `ItemFormDraft`؛ فیکس تایپ سوئیچ اعلان در `AdminScreens` (lambda باید `Unit` برگرداند).
+- `assembleDebug` موفق؛ `testDebugUnitTest` پاس؛ یک‌بار `adb install -r` روی Redmi Note 8 Pro.
+- stub اولیهٔ `assets/help/help_*.json` (فقط `getting_started`).
+
 ### ابزار
 
 - `tools/verify_room_migration.py`: راستی‌آزمایی مهاجرت بدون شبیه‌ساز (بخش ۱ را ببینید).
 
 ---
 
-## ۳. کارهای باقی‌مانده (به ترتیب انجام)
 
-### ۳.۱. سبز کردن بیلد
+---
 
-وضعیت فعلی: ۹۰۳ خطای کامپایل. تقریباً همه به‌خاطر رشته‌های تعریف‌نشده‌اند یا خطای استنتاج نوعی هستند که از همان‌ها ناشی می‌شود. خطاهای واقعیِ غیررشته‌ای فقط سه مورد است:
+## ۳. کارهای باقی‌مانده / پیگیری
 
-| خطا | راه‌حل |
-|-----|--------|
-| `ShopWorkers.kt:87` — `R.drawable` وجود ندارد | ساخت `res/drawable/ic_stat_kalaban.xml` (بخش ۳.۱.ب) |
-| `HelpScreens.kt:138` — `R.drawable.ic_launcher_foreground` | ساخت آیکون تطبیقی (بخش ۳.۱.ب) |
-| `Screens.kt:140` — import کهنهٔ `com.kalaban.farshidb2011.ui.ItemFormDraft` | حذف همین خط import |
+> بیشتر موارد این بخش در دور ۱۴۰۵/۰۸/۱۲ بسته شدند. زیربخش‌ها برای تاریخچه و مرجع نگه داشته شده‌اند.
 
-#### الف) افزودن ۶۳۵ رشتهٔ متنی (انگلیسی در `values/strings.xml` و فارسی در `values-fa/strings.xml`)
+### ۳.۱. سبز کردن بیلد — ✅ انجام شد
 
-فهرست به‌روز کلیدهای جاافتاده را همیشه با این دستور بگیرید. این دستور مرجع اصلی است و فهرست پایین فقط برای دیدن حجم کار است:
+**وضعیت قبلی این بخش (برای تاریخچه):** حدود ۹۰۳ خطای کامپایل به‌خاطر رشته‌های تعریف‌نشده و چند منبع گم‌شده؛ خطاهای غیررشته‌ای اصلی این‌ها بودند و رفع شدند:
+
+| خطا | راه‌حل | وضعیت |
+|-----|--------|--------|
+| `ShopWorkers.kt` — `R.drawable.ic_stat_kalaban` | ساخت drawable اعلان | ✅ |
+| `HelpScreens.kt` — `R.drawable.ic_launcher_foreground` | آیکون تطبیقی | ✅ |
+| `Screens.kt` — import کهنهٔ `ItemFormDraft` | حذف import | ✅ |
+| ۶۳۵ کلید `R.string.*` | افزودن EN + FA | ✅ |
+| `AdminScreens` Switch lambda → `Job` | برگرداندن صریح `Unit` | ✅ |
+
+دستور سلامت رشته‌ها (باید هر دو خروجی خالی باشند):
 
 ```bash
 rg -o --no-filename "R\.string\.[a-z0-9_]+" app/src/main/java | sed 's/R.string.//' | sort -u > /tmp/used.txt
 rg -o --no-filename 'name="[a-z0-9_]+"' app/src/main/res/values/strings.xml | sed 's/name="//;s/"//' | sort -u > /tmp/en.txt
 rg -o --no-filename 'name="[a-z0-9_]+"' app/src/main/res/values-fa/strings.xml | sed 's/name="//;s/"//' | sort -u > /tmp/fa.txt
-comm -23 /tmp/used.txt /tmp/en.txt   # جاافتاده در انگلیسی
-comm -3  /tmp/en.txt  /tmp/fa.txt    # ناهماهنگی انگلیسی/فارسی (باید خالی باشد)
+comm -23 /tmp/used.txt /tmp/en.txt
+comm -3  /tmp/en.txt /tmp/fa.txt
 ```
+
+#### الف) مرجع قالب رشته‌های دارای آرگومان (برای بازبینی متن‌ها الزامی است)
+
+متن‌ها اضافه شده‌اند، ولی هنگام بازنویسی لحن باید قالب آرگومان‌ها حفظ شود:
 
 قواعد نوشتن:
 
@@ -193,135 +232,19 @@ comm -3  /tmp/en.txt  /tmp/fa.txt    # ناهماهنگی انگلیسی/فار�
 | `delete_user_title` | `%1$s` نام کاربر |
 | `operation_failed` | `%1$s` متن خطا |
 
-فهرست کامل ۶۳۵ کلید جاافتاده در لحظهٔ نوشتن این سند:
 
-```text
-a: about about_description about_sub action active actor_owner actor_system add_attribute add_role add_user
-   adjusted_purchase admin_role_locked affected_products alert_backup_due alert_low_margin alert_low_stock
-   alert_negative_profit alerts_channel alert_scheduled_text alert_scheduled_title alert_title all_actions
-   all_products appearance_language apply_changes apply_changes_text apply_rounding app_tagline archive
-   attribute_invalid attribute_key attribute_key_help attribute_options attribute_options_help attributes
-   attributes_intro attributes_sub attribute_type attr_type_boolean attr_type_choice attr_type_number
-   attr_type_text audit_balance_zero audit_catalog audit_config audit_export audit_formula_activate
-   audit_formula_delete audit_formula_revert audit_formula_save audit_history_clear audit_import audit_log
-   audit_login audit_login_failed audit_logout audit_log_sub audit_other audit_payment audit_pin_change
-   audit_price_batch audit_price_rollback audit_price_schedule audit_price_schedule_cancel audit_product_archive
-   audit_product_category audit_product_create audit_product_delete audit_product_duplicate audit_product_restore
-   audit_product_update audit_protected_note audit_restore audit_role_delete audit_role_save audit_sale
-   audit_settings audit_user_delete audit_user_save average_change average_margin
-b: back_to_mapping backup_due_banner backup_help backup_reminder_days backup_reminder_help backup_sub barcode
-   batch_applied batch_cancelled batch_failed batch_rolled_back batch_scheduled batch_title_amount
-   batch_title_factor batch_title_percent batch_title_recalc batch_title_set below_break_even below_cost_count
-   below_minimum_price biometric_owner_note brand break_even_price build_number build_type built_in bulk_applied
-   bulk_applied_conflicts bulk_operation bulk_price_update bulk_price_update_sub bulk_scheduled bulk_scope
-   business_address business_info business_name business_note business_note_help business_phone
-c: calculated_price cancel_schedule cancel_schedule_title cap_bulk cap_data cap_formulas cap_pricing cap_products
-   cap_reports cap_sales cap_security cash_price categories_sub change_category changed_products
-   change_owner_pin change_percent change_pin choose_csv clear_search column_mapping columns compare_formulas
-   computed_base_price condition_matched condition_not_matched conflicting_products copyright_notice copy_suffix
-   cost_section created_at create_missing_categories create_missing_units credit_price credits_sub csv_settings
-   current_pin current_result current_rule custom_range
-d: daily_sales_chart dashboard dashboard_attention dashboard_greeting dashboard_today database_version date
-   decimal_places decimal_places_help default_unit delete_attribute_text delete_attribute_title
-   delete_formula_text delete_formula_title delete_products_text delete_products_title delete_role_title
-   delete_user_title delimiter_comma delimiter_semicolon delimiter_tab description details difference
-   discount_invalid discount_percent discount_rule_summary discounts_given discounts_intro display_panel_settings
-   display_price_base display_price_cash display_price_mode display_price_mode_help display_show_images
-   display_show_stock dollar_history_sub dollar_linked dollar_linked_help dollar_ratio download_template
-   dup_create duplicate duplicates_help duplicates_policy dup_skip dup_update
-e: edit_attribute edit_formula edit_role edit_user entity error_attribute_invalid error_attribute_required
-   error_barcode_duplicate error_formula_required error_manual_price error_margin_range error_min_above_max
-   error_name_taken error_negative error_pieces error_pin_in_use error_pricing_value error_required
-   error_sku_duplicate error_title_required error_too_large error_unit_required excel_note export_csv
-   export_done export_errors export_products export_products_help extra_costs extra_costs_help
-f: ferr_argument_count ferr_division_by_zero ferr_empty ferr_expected_condition ferr_expected_number ferr_format
-   ferr_invalid_argument ferr_missing_value ferr_parentheses ferr_too_complex ferr_too_large ferr_too_long
-   ferr_unexpected_char ferr_unexpected_end ferr_unexpected_token ferr_unknown_function ferr_unknown_variable
-   fixed_profit_amount fix_highlighted_fields flag_formula_error flag_low_margin flag_missing_cost
-   flag_missing_price flag_negative_profit flag_outdated flag_out_of_bounds format_example formula
-   formula_condition formula_condition_help formula_condition_optional formula_deleted formula_duplicated
-   formula_examples formula_expression formula_expression_help formula_limits formula_limits_help formula_name
-   formula_palette formula_palette_help formula_reverted formulas_apply_hint formula_saved formula_scope
-   formulas_intro formula_test formula_valid formula_versions full_cost functions
-g-h: general_settings general_settings_sub help_center help_center_sub hour_of_day
-i: impact_summary import_another import_batch_title import_confirm_text import_done import_errors_note
-   import_export import_export_sub import_file_summary import_intro import_preview import_products import_rows
-   import_title_required inactive include_archived insert_into invalid_number invalid_products
-   issue_barcode_conflict issue_duplicate_in_file issue_invalid_number issue_negative issue_pricing_mode
-   issue_title_missing issue_unknown_category issue_unknown_unit
-l: last_backup last_backup_info last_login licenses limited_by_max limited_by_min low_stock_sub
-m: manage manual_price margin margin_distribution margin_percent markup markup_percent max_price max_stock
-   method_dollar_manager metric_dollar_rate metric_low_margin metric_low_stock metric_month_profit
-   metric_month_sales metric_negative_profit metric_open_credits metric_products metric_revenue
-   metric_today_sales min_margin_help min_margin_not_set min_margin_percent min_price min_quantity mode_auto
-   mode_auto_help mode_fixed_profit mode_fixed_profit_help mode_formula mode_formula_help mode_manual
-   mode_manual_help mode_margin mode_margin_help mode_markup mode_markup_help more_details more_rows
-n: name name_en name_fa net_profit never new_formula new_pin_optional new_price new_product no no_attributes
-   no_audit_entries no_changes_needed no_discounts no_formulas no_help_results no_items_hint
-   no_matching_products no_price_batches no_price_changes no_price_history no_search_results notes
-   notification_settings notification_settings_sub notifications_intro notify_credit notify_low_margin
-   notify_low_stock notify_negative_profit notify_scheduled not_mapped no_users number_format
-o: old_price op_amount op_amount_help operation_failed op_factor op_factor_help op_percent op_percent_help
-   op_recalculate op_recalculate_help op_set op_set_help other_cost outdated_prices_banner overhead
-   overhead_help overhead_percent
-p: package_name packaging_cost payment_recorded payment_type perm_audit perm_delete_products perm_edit_products
-   perm_edit_sale_price perm_export perm_import permission_denied permissions_count perm_manage_catalog
-   perm_manage_credits perm_manage_formulas perm_manage_prices perm_record_sales perm_settings perm_users
-   perm_view_costs perm_view_products perm_view_reports pin pin_changed pin_change_failed pin_locked_out
-   potential_profit pre_tax_price preview_changes preview_rollback price_batches price_batches_sub price_bounds
-   price_bounds_help price_breakdown price_changes_count price_decreases price_edit_not_allowed price_history
-   price_increases price_outdated_detail price_preview prices pricing_formulas pricing_formulas_sub
-   pricing_method pricing_rules pricing_rules_sub pricing_value priority priority_help privacy_text
-   privacy_title product product_duplicated products products_archived product_saved products_count
-   products_delete_blocked products_deleted products_moved products_restored profit_impact_stock
-   profit_partial_note purchase_dollar_rate purchase_price_piece
-q: quantity_discount quantity_discounts quantity_discounts_sub quick_actions
-r: range_30_days range_365_days range_7_days range_90_days range_this_month range_today rates_and_percentages
-   recalc_prompt_banner recalc_prompt_setting recalc_prompt_text recalc_prompt_title recalculate_hint
-   recent_price_changes reminders_sub report_price_changes report_pricing report_sales required respect_bounds
-   restore restore_confirm_text restore_confirm_title restore_version_text restore_version_title review role
-   role_in_use role_not_editable roles roles_sub rollback_apply rollback_done rollback_preview rollback_text
-   rollback_title rollback_unavailable rounding_adjustment rounding_and_costs rounding_bankers rounding_down
-   rounding_global rounding_mode rounding_nearest rounding_step rounding_step_help rounding_up rows_error
-   rows_new rows_skip rows_update run_test
-s: sale_recorded sample_product save_rounding schedule schedule_cancelled schedule_change
-   scheduled_batches_banner scheduled_for schedule_help schedule_in_past search_help search_product_sale
-   search_products_hint section_admin section_catalog section_data section_help section_pricing section_sales
-   security security_lockout_note security_sub select_all selected_count selected_item sell_price_base
-   signed_in_as sign_out sort sort_margin_asc sort_margin_desc sort_price_asc sort_price_desc sort_profit_desc
-   sort_recent sort_stock_asc sort_stock_value sort_title source source_bulk source_create source_dollar_rate
-   source_edit source_import source_recalculation source_rollback source_scheduled status status_active
-   status_archived status_error status_new status_skip status_update stock_value_cost stock_value_retail
-   success summary supplier
-t: tags tags_help tax_collected template_saved this_formula thousands_separator tier_discount_applied
-   top_products total_difference transport_cost
-u-y: unchanged_products units_sub updated_at use_all_products user users users_intro users_sub validate_preview
-   value variables variable_values version versions_count view view_license view_price_batches
-   warn_below_cost warn_condition_error warn_formula_error warn_formula_inactive warn_formula_missing
-   warn_invalid_rate warn_invalid_value warn_missing_cost warn_outside_bounds yes
-```
+#### ب) آیکون‌ها — ✅ ساخته شد
 
-#### ب) آیکون‌ها (فعلاً هیچ drawable‌ای وجود ندارد)
+فایل‌های زیر الان وجود دارند (دیگر «نبود drawable» صدق نمی‌کند):
 
-فایل‌هایی که باید ساخته شوند:
+- `res/drawable/ic_launcher_background.xml` (جوهر `#2F3E46`)
+- `res/drawable/ic_launcher_foreground.xml` / `ic_launcher_monochrome.xml`
+- `res/mipmap-anydpi-v26/ic_launcher.xml` و `ic_launcher_round.xml`
+- `res/drawable/ic_stat_kalaban.xml`
 
-- `res/drawable/ic_launcher_background.xml`: زمینهٔ یک‌دست جوهری `#2F3E46` روی کل بوم 108×108.
-- `res/drawable/ic_launcher_foreground.xml`: برچسب قیمت مسی `#C17F4E` با سوراخ واقعی (`fillType="evenOdd"`) و سه میلهٔ کرم `#F7F1E8` به نشانهٔ رشد و تحلیل قیمت.
-- `res/drawable/ic_launcher_monochrome.xml`: همان شکل به‌صورت تک‌رنگ (سوراخ و میله‌ها هم بریده شوند)، برای آیکون‌های تم‌دار اندروید ۱۳ به بعد.
-- `res/mipmap-anydpi-v26/ic_launcher.xml` و `ic_launcher_round.xml`: تگ `<adaptive-icon>` با `background` و `foreground` و `monochrome`. چون minSdk برابر ۲۶ است، PNGهای قدیمی دیگر هیچ‌وقت استفاده نمی‌شوند.
-- `res/drawable/ic_stat_kalaban.xml`: آیکون اعلان 24dp، فقط سفید یا آلفا (طرح برچسب). بعد از ساخت آن، در `ReminderNotifications.show` هم `android.R.drawable.ic_dialog_info` را با همین آیکون عوض کنید.
+**انجام شد:** `ReminderNotifications` و `ShopWorkers` هر دو از `ic_stat_kalaban` استفاده می‌کنند.
 
-مسیر پیشنهادی (viewport 108، داخل دایرهٔ امن به قطر 66):
-
-```text
-برچسب: M27,54 L43,37 L77,37 Q81,37 81,41 L81,67 Q81,71 77,71 L43,71 Z
-سوراخ: M35.4,54 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0   (با برچسب در یک path و evenOdd)
-میله‌ها: M50,58 h5 v7 h-5 Z   M59,53 h5 v12 h-5 Z   M68,47 h5 v18 h-5 Z
-```
-
-برای پیش‌نمایش، معادل SVG را بسازید و با ImageMagick به PNG تبدیل کنید (`convert icon.svg icon.png`)، سپس تصویر را ببینید. در `HelpScreens.kt`، `BrandMark` از `R.drawable.ic_launcher_foreground` روی رنگ `Ink40` استفاده می‌کند.
-
-#### ج) بعد از کامپایل موفق، این موارد را هم بررسی و جمع‌وجور کنید
+#### ج) جمع‌وجوری بعد از بیلد سبز — ✅ انجام شد
 
 - آیکون‌های غیرآینه‌ای منسوخ (`TrendingUp`، `TrendingDown`، `ReceiptLong`، `Sort`، `Label`، `ShowChart` و…) را به نسخهٔ `Icons.AutoMirrored.*` تغییر دهید تا هشدار نماند.
 - در `ui/LocaleProvider.kt`، علاوه بر `LocalContext` و `LocalConfiguration`، `LocalResources` را هم provide کنید. در Compose UI 1.11، `stringResource` از `LocalResources` می‌خواند.
@@ -334,9 +257,10 @@ u-y: unchanged_products units_sub updated_at use_all_products user users users_i
 - `SuccessDialog`، `RetailMenuRow` و `RetailPeriodChip` در `RetailUi.kt` احتمالاً بی‌استفاده شده‌اند. حذف کنید.
 - رشته‌های قدیمیِ احتمالاً بی‌استفاده را با گزارش lint (`UnusedResources`) پیدا و حذف کنید: `batch_ok`، `batch_pricing`، `price_factor`، `help_price_factor`، `choose_mode`، `offline_note`، `home`، `settings` و…
 
+
 ### ۳.۲. محتوای راهنمای درون‌برنامه
 
-دو فایل باید ساخته شوند: `app/src/main/assets/help/help_fa.json` و `help_en.json`. ساختار هر فایل (کلاس‌ها در `data/help/HelpContent.kt`):
+فایل‌های `help_fa.json` و `help_en.json` با **۱۶ مقاله** پر شده‌اند. ساختار (کلاس‌ها در `data/help/HelpContent.kt`):
 
 ```json
 { "articles": [ { "id": "...", "title": "...", "summary": "...", "keywords": ["..."],
@@ -376,9 +300,9 @@ u-y: unchanged_products units_sub updated_at use_all_products user users users_i
 - **توابع:** `min`، `max`، `abs`، `round(x[, digits])`، `ceil`، `floor`، `roundto/ceilto/floorto(x, step)`، `clamp(x, lo, hi)`، `pct(x, p)`، `addpct(x, p)`، `subpct(x, p)`، `margin(cost, m)` و `if(cond, a, b)` (ارزیابی تنبل: فقط شاخهٔ انتخاب‌شده محاسبه می‌شود).
 - **عملگرها:** `+ - * / ^`، مقایسه‌ها (`<`، `<=`، `>`، `>=`، `==`، `!=`) و `and/or/not` (همچنین `&& || !`). ارقام فارسی و `×` و `÷` هم پذیرفته می‌شوند.
 
-### ۳.۳. تست‌ها
+### ۳.۳. تست‌ها — ✅
 
-- همهٔ تست‌های موجود دوباره پاس شوند (`./gradlew testDebugUnitTest`).
+- همهٔ تست‌های موجود دوباره پاس شدند (`./gradlew testDebugUnitTest`).
 - تست‌های خالص پیشنهادی که هنوز نوشته نشده‌اند:
   - رفت‌وبرگشت `AppConfig.toMap/fromMap` و مقدار پیش‌فرض برای ورودی خراب.
   - `Permission.parse/encode`.
@@ -386,6 +310,9 @@ u-y: unchanged_products units_sub updated_at use_all_products user users users_i
   - `PricingRepository.decode` برای payload زمان‌بندی (یا جدا کردن encode/decode به یک تابع خالص).
 
 ### ۳.۴. راستی‌آزمایی (فقط چیزهایی را «تست‌شده» گزارش کنید که واقعاً اجرا شده‌اند)
+
+**انجام‌شده بدون پین:** بیلد+تست+lint+release، مهاجرت روی بکاپ v2، پشتیبان تازه، `adb install -r`، start، pid زنده، crash buffer خالی، اسکرین.
+**مانده با پین مالک:** بند ۴ زیر.
 
 1. اجرای بیلد و تست و lint:
 
@@ -412,22 +339,25 @@ u-y: unchanged_products units_sub updated_at use_all_products user users users_i
    - **امنیت و ممیزی:** ۵ پین اشتباه پشت سر هم → قفل موقت؛ لاگ ممیزی؛ تغییر زبان فارسی و انگلیسی (جهت راست‌به‌چپ و چپ‌به‌راست).
 5. آیکون اپ در لانچر گوشی دیده شود (اسکرین‌شات از صفحهٔ اصلی).
 
-### ۳.۵. مستندات
+### ۳.۵. مستندات — ✅
 
-- `RUNBOOK.md` (فارسی):
+- `RUNBOOK.md` (فارسی): وضعیت v3، ConfigKeys، مجوزها، مدل داده، ساخت/ایمنی:
   - معماری نسخهٔ ۳ و مدل داده.
   - موتور قیمت و فرمول.
   - مجوزها، تنظیمات (`ConfigKeys`)، گزارش‌ها، ورود و خروج داده.
   - ابزار مهاجرت، تصمیم‌های رفتاری (بخش ۴) و محدودیت‌ها (بخش ۵).
-- `README.md`: دستورهای تست، lint، release، ابزار `tools/verify_room_migration.py`، پوشهٔ `app/schemas`، و هشدار دربارهٔ `connectedAndroidTest`.
+- `README.md`: دستورهای تست، lint، release، ابزار مهاجرت، schemas، هشدار `connectedAndroidTest`.
 
-### ۳.۶. گزارش نهایی
+### ۳.۶. گزارش نهایی — ✅ در `PRODUCT_REPORT.md`
 
-طبق درخواست اصلی، این بخش‌ها لازم است:
+محتوای تحویلی:
 
 - مرور محصول، ویژگی‌ها، امکانات ادمین، موتور قیمت، UI/UX و هویت بصری.
 - معماری، تست‌ها (با نتیجهٔ واقعی)، محدودیت‌ها، فایل‌های تغییرکرده.
 - این‌که کدام نیازها با تنظیمات قابل انجام‌اند و کدام هنوز به برنامه‌نویسی نیاز دارند.
+
+---
+
 
 ---
 
@@ -452,7 +382,10 @@ u-y: unchanged_products units_sub updated_at use_all_products user users users_i
 - بازیابی کامل پشتیبان، لاگ ممیزی را هم با نسخهٔ داخل پشتیبان جایگزین می‌کند. خودِ رویداد بازیابی بعد از آن ثبت می‌شود.
 - اجرای تغییرات زمان‌بندی‌شده و هشدار روزانه به WorkManager وابسته است و ممکن است با بهینه‌سازی باتری بعضی برندها کمی دیر اجرا شود.
 - مهاجرت دیتابیس به‌جای تست instrumented، با ابزار Python روی کپی دادهٔ واقعی تأیید شده است.
-- هیچ‌کدام از صفحه‌های جدید هنوز روی دستگاه اجرا نشده‌اند.
+- صفحه‌های جدید نصب و لانچ شده‌اند؛ آزمون دستی سرتاسری با پین مالک هنوز با کاربر نهایی است.
+- راهنمای درون‌برنامه ۱۶ مقاله دارد.
+- متن‌های UI بازبینی شده‌اند؛ بهبود لحن بیشتر همیشه ممکن است.
+- دیتابیس روی دستگاه بعد از نصب فعلی `user_version=3` است.
 
 ## ۶. سؤال‌های باز برای مالک
 

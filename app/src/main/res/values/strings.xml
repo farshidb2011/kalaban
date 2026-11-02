@@ -6,7 +6,6 @@
     <string name="items">Items</string>
     <string name="units">Units</string>
     <string name="categories">Categories</string>
-    <string name="settings">Settings</string>
     <string name="sales">Sales</string>
     <string name="reports">Reports</string>
     <string name="backup">Backup</string>
@@ -45,8 +44,6 @@
     <string name="lock">Lock</string>
     <string name="export_data">Export</string>
     <string name="import_data">Import</string>
-    <string name="batch_pricing">Batch pricing</string>
-    <string name="price_factor">Price factor</string>
     <string name="apply">Apply</string>
     <string name="reminders">Reminders</string>
     <string name="open_balance">Open balance</string>
@@ -56,8 +53,6 @@
     <string name="biometric_unavailable">Fingerprint is not available on this device.</string>
     <string name="no_items">No items yet</string>
     <string name="recalculate_prices">Recalculate prices</string>
-    <string name="home">Home</string>
-    <string name="choose_mode">Choose panel</string>
     <string name="unit_name">Unit name</string>
     <string name="category_name">Category name</string>
     <string name="range_daily">Daily</string>
@@ -67,7 +62,6 @@
     <string name="range_biannual">Biannual</string>
     <string name="range_yearly">Yearly</string>
     <string name="total">Total</string>
-    <string name="offline_note">Fully offline — data stays on this device.</string>
     <string name="take_photo">Camera</string>
     <string name="pick_image">Gallery</string>
     <string name="cart">Cart</string>
@@ -80,7 +74,6 @@
     <string name="ok">OK</string>
     <string name="done_title">Done</string>
     <string name="saved_ok">Settings saved.</string>
-    <string name="batch_ok">Batch pricing applied.</string>
     <string name="set_pin_once">Create your admin PIN</string>
     <string name="confirm_pin">Confirm PIN</string>
     <string name="pin_mismatch">PINs do not match</string>
@@ -93,7 +86,6 @@
     <string name="help_dollar_change_percent">Extra percent applied on sales when the dollar rate moves.</string>
     <string name="help_installment_diff_percent">Extra percent added for installment / credit sales versus cash.</string>
     <string name="help_currency">Display currency code only (values stay numeric; no conversion).</string>
-    <string name="help_price_factor">Multiplies every item sell price by this factor (for example 1.1 raises all prices 10%). Leave empty or 1 to leave prices unchanged. Applied once when you tap Batch pricing.</string>
     <string name="select_credit">Select a credit row first</string>
 
     <string name="unit">Unit</string>
@@ -204,7 +196,7 @@
     <string name="attribute_options_help">Comma-separated choices</string>
     <string name="attribute_type">Type</string>
     <string name="attributes">Attributes</string>
-    <string name="attributes_intro">Custom fields for products and formulas</string>
+    <string name="attributes_intro">Custom fields for products; numeric keys become attr_&lt;key&gt; in formulas.</string>
     <string name="attributes_sub">Custom product fields</string>
     <string name="audit_balance_zero">Credit zeroed</string>
     <string name="audit_catalog">Catalog</string>
@@ -352,7 +344,7 @@
     <string name="discount_percent">Discount %</string>
     <string name="discount_rule_summary">From %1$s pcs · %2$s%% off</string>
     <string name="discounts_given">Discounts</string>
-    <string name="discounts_intro">Quantity tiers applied at sale time</string>
+    <string name="discounts_intro">Quantity tiers applied automatically at sale time.</string>
     <string name="display_panel_settings">Display panel</string>
     <string name="display_price_base">Base sell price</string>
     <string name="display_price_cash">Cash price</string>
@@ -449,7 +441,7 @@
     <string name="formula_valid">Formula is valid</string>
     <string name="formula_versions">Versions</string>
     <string name="formulas_apply_hint">Activate a formula to use it in pricing</string>
-    <string name="formulas_intro">Build sell prices from cost and shop rules</string>
+    <string name="formulas_intro">Build sell prices from cost and shop rules with a safe formula language.</string>
     <string name="full_cost">Full cost</string>
     <string name="functions">Functions</string>
     <string name="general_settings">General</string>
@@ -540,24 +532,24 @@
     <string name="new_price">New price</string>
     <string name="new_product">New Product</string>
     <string name="no">No</string>
-    <string name="no_attributes">No Attributes</string>
-    <string name="no_audit_entries">No Audit Entries</string>
+    <string name="no_attributes">No custom attributes yet</string>
+    <string name="no_audit_entries">No audit entries yet</string>
     <string name="no_changes_needed">No Changes Needed</string>
-    <string name="no_discounts">No Discounts</string>
-    <string name="no_formulas">No Formulas</string>
-    <string name="no_help_results">No Help Results</string>
-    <string name="no_items_hint">No Items Hint</string>
+    <string name="no_discounts">No quantity discounts yet</string>
+    <string name="no_formulas">No formulas yet</string>
+    <string name="no_help_results">No help articles match your search</string>
+    <string name="no_items_hint">Add your first product to start selling.</string>
     <string name="no_matching_products">No matching products</string>
-    <string name="no_price_batches">No Price Batches</string>
+    <string name="no_price_batches">No price batches yet</string>
     <string name="no_price_changes">No price changes in this range</string>
-    <string name="no_price_history">No Price History</string>
+    <string name="no_price_history">No price history yet</string>
     <string name="no_search_results">No results</string>
-    <string name="no_users">No Users</string>
+    <string name="no_users">No extra users yet</string>
     <string name="not_mapped">Not Mapped</string>
     <string name="notes">Notes</string>
     <string name="notification_settings">Notification Settings</string>
     <string name="notification_settings_sub">Notification Settings</string>
-    <string name="notifications_intro">Notifications Intro</string>
+    <string name="notifications_intro">Choose which shop alerts appear as system notifications.</string>
     <string name="notify_credit">Notify Credit</string>
     <string name="notify_low_margin">Notify Low Margin</string>
     <string name="notify_low_stock">Notify Low Stock</string>
@@ -659,9 +651,9 @@
     <string name="range_this_month">Range This Month</string>
     <string name="range_today">Range Today</string>
     <string name="rates_and_percentages">Rates And Percentages</string>
-    <string name="recalc_prompt_banner">Recalc Prompt Banner</string>
+    <string name="recalc_prompt_banner">Dollar or manager settings changed. Review recalculation before applying.</string>
     <string name="recalc_prompt_setting">Recalc Prompt Setting</string>
-    <string name="recalc_prompt_text">Recalc Prompt Text</string>
+    <string name="recalc_prompt_text">Preview how linked prices would change, then apply as one reversible batch.</string>
     <string name="recalc_prompt_title">Recalc Prompt Title</string>
     <string name="recalculate_hint">Recalculate Hint</string>
     <string name="recent_price_changes">Recent Price Changes</string>
@@ -723,7 +715,7 @@
     <string name="section_pricing">Section Pricing</string>
     <string name="section_sales">Section Sales</string>
     <string name="security">Security</string>
-    <string name="security_lockout_note">Security Lockout Note</string>
+    <string name="security_lockout_note">After five wrong PINs, unlock is temporarily locked and the wait grows with more failures.</string>
     <string name="security_sub">Security</string>
     <string name="select_all">Select All</string>
     <string name="selected_count">%1$d selected</string>
@@ -778,7 +770,7 @@
     <string name="use_all_products">Use All Products</string>
     <string name="user">User</string>
     <string name="users">Users</string>
-    <string name="users_intro">Users Intro</string>
+    <string name="users_intro">Optional staff PINs with roles. Without extra users, only the owner PIN is used.</string>
     <string name="users_sub">Users</string>
     <string name="validate_preview">Validate Preview</string>
     <string name="value">Value</string>

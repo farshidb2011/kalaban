@@ -276,10 +276,6 @@ class AppViewModel(application: Application) : GuardedViewModel(application) {
         app.audit.log(actor, AuditAction.BALANCE_ZERO, AuditEntity.SALE, saleId, reason)
     }
 
-    fun loadReport(range: ShopRepository.ReportRange) = launchSafely {
-        _report.value = repo.detailedSalesReport(range)
-    }
-
     fun loadReport(fromEpochMs: Long, toEpochMs: Long) = launchSafely {
         _report.value = repo.detailedSalesReport(fromEpochMs, toEpochMs)
     }

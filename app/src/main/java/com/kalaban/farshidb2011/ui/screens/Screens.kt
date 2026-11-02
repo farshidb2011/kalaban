@@ -14,9 +14,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import com.kalaban.farshidb2011.ui.findFragmentActivity
-import com.kalaban.farshidb2011.ui.components.SuccessDialog
 import com.kalaban.farshidb2011.ui.components.HelpIconButton
-import com.kalaban.farshidb2011.ui.components.RetailPeriodChip
 import com.kalaban.farshidb2011.ui.components.RetailFilterChip
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.LocalContentColor
@@ -80,9 +78,6 @@ import com.kalaban.farshidb2011.ui.components.retailTextFieldColors
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -140,7 +135,6 @@ import com.kalaban.farshidb2011.ui.AppViewModel
 import com.kalaban.farshidb2011.ui.SaleCartLineDraft
 import com.kalaban.farshidb2011.ui.components.RetailCard
 import com.kalaban.farshidb2011.ui.components.RetailDivider
-import com.kalaban.farshidb2011.ui.components.RetailMenuRow
 import com.kalaban.farshidb2011.ui.components.RetailTextField
 import com.kalaban.farshidb2011.ui.components.RetailOutlinedButton
 import com.kalaban.farshidb2011.ui.components.RetailPrimaryButton
@@ -1266,7 +1260,6 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
     val items by vm.items.collectAsStateWithLifecycle()
     val draft by vm.newSaleDraft.collectAsStateWithLifecycle()
     var dateError by rememberSaveable { mutableStateOf(false) }
-    var itemMenuOpen by rememberSaveable { mutableStateOf(false) }
     var lastPricedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val buyer = draft.buyer
     val credit = draft.credit

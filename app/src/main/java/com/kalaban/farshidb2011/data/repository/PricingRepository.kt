@@ -111,7 +111,7 @@ data class BulkPreview(
 data class ApplyResult(val batchId: Long, val applied: Int, val conflicts: List<String>)
 
 /** Serializable form of [BulkRequest] stored with scheduled batches. */
-private data class BulkRequestDto(
+internal data class BulkRequestDto(
     val categoryId: Long? = null,
     val itemIds: List<Long>? = null,
     val includeArchived: Boolean = false,
@@ -121,12 +121,53 @@ private data class BulkRequestDto(
     val respectBounds: Boolean = true,
 )
 
+/** Pure encode/decode for scheduled bulk payloads (unit-testable without Room). */
+object BulkRequestCodec {
+    private val gson = Gson()
+
+    fun encode(request: BulkRequest): String {
+        val (op, value) = when (val o = request.operation) {
+            BulkOperation.Recalculate -> "RECALC" to null
+            is BulkOperation.Adjust -> when (val a = o.adjustment) {
+                is PriceAdjustment.Percent -> "PERCENT" to a.pct.toPlainString()
+                is PriceAdjustment.Amount -> "AMOUNT" to a.amount.toPlainString()
+                is PriceAdjustment.Factor -> "FACTOR" to a.factor.toPlainString()
+                is PriceAdjustment.SetPrice -> "SET" to a.price.toPlainString()
+            }
+        }
+        return gson.toJson(
+            BulkRequestDto(
+                request.scope.categoryId,
+                request.scope.itemIds?.toList(),
+                request.scope.includeArchived,
+                op,
+                value,
+                request.applyRounding,
+                request.respectBounds,
+            ),
+        )
+    }
+
+    fun decode(payload: String): BulkRequest? = runCatching {
+        val dto = gson.fromJson(payload, BulkRequestDto::class.java)
+        val v = Numbers.parseDecimal(dto.value)
+        val operation = when (dto.op) {
+            "RECALC" -> BulkOperation.Recalculate
+            "PERCENT" -> BulkOperation.Adjust(PriceAdjustment.Percent(v!!))
+            "AMOUNT" -> BulkOperation.Adjust(PriceAdjustment.Amount(v!!))
+            "FACTOR" -> BulkOperation.Adjust(PriceAdjustment.Factor(v!!))
+            "SET" -> BulkOperation.Adjust(PriceAdjustment.SetPrice(v!!))
+            else -> return@runCatching null
+        }
+        BulkRequest(BulkScope(dto.categoryId, dto.itemIds?.toSet(), dto.includeArchived), operation, dto.applyRounding, dto.respectBounds)
+    }.getOrNull()
+}
+
 class PricingRepository(
     private val db: KalabanDatabase,
     private val config: ConfigRepository,
     private val audit: AuditRepository,
 ) {
-    private val gson = Gson()
 
     // ---- Formulas ----
 
@@ -530,42 +571,7 @@ class PricingRepository(
 
     // ---- Scheduling ----
 
-    private fun encode(request: BulkRequest): String {
-        val (op, value) = when (val o = request.operation) {
-            BulkOperation.Recalculate -> "RECALC" to null
-            is BulkOperation.Adjust -> when (val a = o.adjustment) {
-                is PriceAdjustment.Percent -> "PERCENT" to a.pct.toPlainString()
-                is PriceAdjustment.Amount -> "AMOUNT" to a.amount.toPlainString()
-                is PriceAdjustment.Factor -> "FACTOR" to a.factor.toPlainString()
-                is PriceAdjustment.SetPrice -> "SET" to a.price.toPlainString()
-            }
-        }
-        return gson.toJson(
-            BulkRequestDto(
-                request.scope.categoryId,
-                request.scope.itemIds?.toList(),
-                request.scope.includeArchived,
-                op,
-                value,
-                request.applyRounding,
-                request.respectBounds,
-            ),
-        )
-    }
-
-    fun decode(payload: String): BulkRequest? = runCatching {
-        val dto = gson.fromJson(payload, BulkRequestDto::class.java)
-        val v = Numbers.parseDecimal(dto.value)
-        val operation = when (dto.op) {
-            "RECALC" -> BulkOperation.Recalculate
-            "PERCENT" -> BulkOperation.Adjust(PriceAdjustment.Percent(v!!))
-            "AMOUNT" -> BulkOperation.Adjust(PriceAdjustment.Amount(v!!))
-            "FACTOR" -> BulkOperation.Adjust(PriceAdjustment.Factor(v!!))
-            "SET" -> BulkOperation.Adjust(PriceAdjustment.SetPrice(v!!))
-            else -> return@runCatching null
-        }
-        BulkRequest(BulkScope(dto.categoryId, dto.itemIds?.toSet(), dto.includeArchived), operation, dto.applyRounding, dto.respectBounds)
-    }.getOrNull()
+    fun decode(payload: String): BulkRequest? = BulkRequestCodec.decode(payload)
 
     suspend fun schedule(request: BulkRequest, atEpochMs: Long, title: String, actor: Actor): Long = db.withTransaction {
         val id = db.priceBatchDao().insert(
@@ -574,7 +580,7 @@ class PricingRepository(
                 title = title,
                 actor = actor.name,
                 status = BatchStatus.SCHEDULED,
-                payload = encode(request),
+                payload = BulkRequestCodec.encode(request),
                 scheduledAtEpochMs = atEpochMs,
             ),
         )

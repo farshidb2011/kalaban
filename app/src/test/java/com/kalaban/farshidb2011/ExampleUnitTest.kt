@@ -15,54 +15,6 @@ import org.junit.Test
 
 class ExampleUnitTest {
     @Test
-    fun pricingEngine_recalculatesWithManagerPercent() {
-        val result = PricingEngine.recalculateSellPrice(
-            purchasePrice = 100.0,
-            purchaseDollarRate = 10.0,
-            newDollarRate = 20.0,
-            managerPercent = 10.0,
-        )
-        assertEquals(220.0, result, 0.0001)
-    }
-
-    @Test
-    fun pricingEngine_handlesZeroPurchaseDollarRateSafely() {
-        val result = PricingEngine.recalculateSellPrice(
-            purchasePrice = 149.999,
-            purchaseDollarRate = 0.0,
-            newDollarRate = 50.0,
-            managerPercent = 15.0,
-        )
-        assertEquals(150.0, result, 0.0001)
-    }
-
-    @Test
-    fun saleUnitPrice_appliesDollarChangeProfitAndTax() {
-        // 100 * 1.1 dollarChange = 110; *1.2 profit = 132; *1.1 tax = 145.2
-        val result = PricingEngine.saleUnitPrice(
-            storedSellPrice = 100.0,
-            dollarChangePercent = 10.0,
-            taxPercent = 10.0,
-            profitPercent = 20.0,
-        )
-        assertEquals(145.2, result, 0.0001)
-    }
-
-    @Test
-    fun saleUnitPrice_appliesInstallmentDiffForCreditSales() {
-        // Cash = 145.2; with 10% installment diff = 159.72
-        val result = PricingEngine.saleUnitPrice(
-            storedSellPrice = 100.0,
-            dollarChangePercent = 10.0,
-            taxPercent = 10.0,
-            profitPercent = 20.0,
-            installment = true,
-            installmentDiffPercent = 10.0,
-        )
-        assertEquals(159.72, result, 0.0001)
-    }
-
-    @Test
     fun purchaseRateAfterEdit_keepsOriginalRateUnlessPriceChanges() {
         // Editing title/stock: the stored price round-trips through the form, so the original rate stays
         assertEquals(50.0, PricingEngine.purchaseRateAfterEdit(33.33, 50.0, 99.99 / 3, 60.0), 0.0001)
@@ -81,12 +33,9 @@ class ExampleUnitTest {
 
     @Test
     fun jalaliDate_validatesMonthLengthsAndRoundTrips() {
-        // Month 1..6 allow 31 days
         assertNotNull(JalaliDate.parse("1403/06/31"))
-        // Month 7..11 allow max 30 days
         assertNotNull(JalaliDate.parse("1403/07/30"))
         assertNull(JalaliDate.parse("1403/07/31"))
-        // Out of range years/months
         assertNull(JalaliDate.parse("1200/01/01"))
         assertNull(JalaliDate.parse("1403/13/01"))
 

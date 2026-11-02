@@ -19,8 +19,8 @@ import androidx.compose.material.icons.outlined.NewLabel
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PriceChange
 import androidx.compose.material.icons.outlined.ReportProblem
-import androidx.compose.material.icons.outlined.TrendingDown
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
@@ -156,7 +156,7 @@ fun DashboardScreen(
                         MetricCard(
                             stringResource(R.string.metric_month_profit),
                             Money.format(snapshot.monthProfit),
-                            if (snapshot.monthProfit.signum() < 0) Icons.Outlined.TrendingDown else Icons.Outlined.TrendingUp,
+                            if (snapshot.monthProfit.signum() < 0) Icons.AutoMirrored.Outlined.TrendingDown else Icons.AutoMirrored.Outlined.TrendingUp,
                             Modifier.weight(1f),
                             tone = if (snapshot.monthProfit.signum() < 0) Tone.DANGER else Tone.SUCCESS,
                         )
@@ -212,7 +212,7 @@ fun DashboardScreen(
                     MetricCard(
                         stringResource(R.string.metric_low_margin),
                         if (config.minMarginPct.signum() > 0) snapshot.lowMargin.toString() else "—",
-                        Icons.Outlined.TrendingDown,
+                        Icons.AutoMirrored.Outlined.TrendingDown,
                         Modifier.weight(1f),
                         tone = if (snapshot.lowMargin > 0) Tone.WARNING else Tone.NEUTRAL,
                         onClick = if (appVm.can(Permission.VIEW_REPORTS)) onOpenAnalysis else null,

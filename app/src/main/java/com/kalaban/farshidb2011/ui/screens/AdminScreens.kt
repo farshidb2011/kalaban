@@ -34,7 +34,7 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.ImportExport
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.outlined.ManageHistory
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -43,7 +43,7 @@ import androidx.compose.material.icons.outlined.Percent
 import androidx.compose.material.icons.outlined.PriceChange
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Store
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Tune
@@ -135,12 +135,12 @@ fun ManagementScreen(appVm: AppViewModel, onNavigate: (String) -> Unit, onSignOu
             HubEntry(R.string.bulk_price_update, R.string.bulk_price_update_sub, Icons.Outlined.PriceChange, Routes.BULK_PRICE, appVm.can(Permission.MANAGE_PRICES)),
             HubEntry(R.string.price_batches, R.string.price_batches_sub, Icons.Outlined.ManageHistory, Routes.PRICE_BATCHES, appVm.can(Permission.MANAGE_PRICES)),
             HubEntry(R.string.quantity_discounts, R.string.quantity_discounts_sub, Icons.Outlined.Percent, Routes.DISCOUNTS, appVm.can(Permission.MANAGE_PRICES)),
-            HubEntry(R.string.dollar_history, R.string.dollar_history_sub, Icons.Outlined.ShowChart, Routes.DOLLAR_HISTORY, appVm.can(Permission.MANAGE_PRICES)),
+            HubEntry(R.string.dollar_history, R.string.dollar_history_sub, Icons.AutoMirrored.Outlined.ShowChart, Routes.DOLLAR_HISTORY, appVm.can(Permission.MANAGE_PRICES)),
         ),
         R.string.section_catalog to listOf(
             HubEntry(R.string.categories, R.string.categories_sub, Icons.Outlined.Category, Routes.CATEGORIES, appVm.can(Permission.MANAGE_CATALOG)),
             HubEntry(R.string.units, R.string.units_sub, Icons.Outlined.Straighten, Routes.UNITS, appVm.can(Permission.MANAGE_CATALOG)),
-            HubEntry(R.string.attributes, R.string.attributes_sub, Icons.Outlined.Label, Routes.ATTRIBUTES, appVm.can(Permission.MANAGE_CATALOG)),
+            HubEntry(R.string.attributes, R.string.attributes_sub, Icons.AutoMirrored.Outlined.Label, Routes.ATTRIBUTES, appVm.can(Permission.MANAGE_CATALOG)),
             HubEntry(R.string.low_stock, R.string.low_stock_sub, Icons.Outlined.WarningAmber, Routes.LOW_STOCK, appVm.can(Permission.VIEW_PRODUCTS)),
         ),
         R.string.section_sales to listOf(
@@ -949,7 +949,7 @@ fun AttributesScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: 
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             item { InfoBanner(stringResource(R.string.attributes_intro), Tone.INFO) }
-            if (definitions.isEmpty()) item { RetailEmptyState(Icons.Outlined.Label, stringResource(R.string.no_attributes)) }
+            if (definitions.isEmpty()) item { RetailEmptyState(Icons.AutoMirrored.Outlined.Label, stringResource(R.string.no_attributes)) }
             items(definitions, key = { it.id }) { d ->
                 RetailCard(Modifier.clickable { editing = d }) {
                     ListItem(

@@ -1,60 +1,70 @@
 # Kalaban
 
-Single-module Android app (`com.kalaban.farshidb2011`) built with Jetpack Compose and Material 3.
+اپ آفلاین مدیریت فروشگاه (`com.kalaban.farshidb2011`) با Jetpack Compose و Material 3.
+
+نسخهٔ ۳: موتور قیمت اعشاری/فرمول، تغییر گروهی، چندکاربره اختیاری، گزارش‌ها، ورود CSV، ممیزی. جزئیات محصول و وضعیت در [`RUNBOOK.md`](RUNBOOK.md)، [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) و [`PRODUCT_REPORT.md`](PRODUCT_REPORT.md).
 
 ## Prerequisites
 
-- **Java 17** on `PATH`, with `JAVA_HOME` set  
-  This machine uses Eclipse Temurin at `~/.jdks/current` (wired in `~/.bashrc`).
-- **Android SDK** with platform **34** and build-tools  
-  Project SDK path is set in `local.properties`:
-
-  ```properties
-  sdk.dir=/home/farshid/Apps/Android/Sdk
-  ```
-
-  Adjust `sdk.dir` if your SDK lives elsewhere. Do not commit machine-specific secrets; `local.properties` is gitignored.
-- Device or emulator with `adb` available (`$ANDROID_HOME/platform-tools`).
+- **Java 17** (`JAVA_HOME`؛ روی این ماشین معمولاً `~/.jdks/current`)
+- **Android SDK** در `local.properties` → `sdk.dir=...` (gitignore شده)
+- `adb` از `$ANDROID_HOME/platform-tools`
 
 ## Build and run
 
-From the project root:
-
 ```bash
-# Debug APK
-make build
-# or
+export JAVA_HOME=~/.jdks/current
+export ANDROID_HOME=~/Apps/Android/Sdk
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+
 ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.kalaban.farshidb2011/.MainActivity
 
-# Install on a connected device
-make install
-
-# Build, install, and launch MainActivity
-make run
-
-# Release APK (minified; signed with debug-keystore placeholder)
-make release
-
-# Play Store bundle
-make bundle
-
-# Unit tests
-./gradlew test
-
-# Clean
-make clean
+# یا با Makefile
+make build && make install && make run
 ```
 
-Other helpers: `make devices`, `make logs`, `make uninstall`, `make info`.
+## Tests, lint, release
+
+```bash
+./gradlew testDebugUnitTest
+./gradlew lintDebug
+./gradlew assembleRelease   # R8؛ keepهای Gson در app/proguard-rules.pro
+```
+
+**هشدار:** هرگز `connectedAndroidTest` / `./gradlew connectedDebugAndroidTest` را روی گوشی فروشگاه اجرا نکنید — در پایان اپ را uninstall می‌کند و داده از بین می‌رود.
+
+## Room schema and migration
+
+- Schema نسخهٔ ۳: `app/schemas/com.kalaban.farshidb2011.data.local.KalabanDatabase/3.json`
+- مهاجرت ۲→۳ فقط‌افزودنی است (`KalabanDatabase.kt`)
+- راستی‌آزمایی روی کپی دیتابیس واقعی:
+
+```bash
+python3 tools/verify_room_migration.py /path/to/kalaban.db
+```
+
+پشتیبان دستگاه (نمونه):
+
+```bash
+BK="$HOME/kalaban-device-backups/$(date +%Y%m%d-%H%M%S)" && mkdir -p "$BK" \
+  && adb shell am force-stop com.kalaban.farshidb2011 \
+  && adb exec-out "run-as com.kalaban.farshidb2011 tar -cf - databases files cache 2>/dev/null" > "$BK/app-data.tar"
+```
 
 ## Project layout
 
-- App module: `app/`
-- Package: `com.kalaban.farshidb2011`
-- Version catalog: `gradle/libs.versions.toml` (AGP 8.2.2, Kotlin 1.9.22, Compose BOM 2024.01.00, Material3 1.2.1)
-- Gradle wrapper: 8.5
+```
+app/src/main/java/.../core/          Numbers, Money, PriceCalculator, FormulaEngine, Csv
+app/src/main/java/.../data/          Room v3, repositories, help
+app/src/main/java/.../domain/        Permission, Session
+app/src/main/java/.../ui/            ۵ تب ادمین + پنل نمایش
+app/src/main/assets/help/            help_fa.json / help_en.json
+tools/verify_room_migration.py
+```
 
 ## Notes
 
-- Release signing currently reuses the local debug keystore as a placeholder. Replace `signingConfigs.release` in `app/build.gradle.kts` before publishing.
-- `new-project.sh` can clone/rename this template for a new package name.
+- Release signing فعلاً از debug keystore به‌عنوان placeholder استفاده می‌کند؛ قبل از انتشار عوض شود.
+- `new-project.sh` برای کلون/تغییر package template است.
