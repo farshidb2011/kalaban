@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -60,6 +59,7 @@ import com.kalaban.farshidb2011.ui.components.StatusChip
 import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 
 @Composable
 fun ImportScreen(vm: ImportViewModel, appVm: AppViewModel, onBack: () -> Unit, onOpenBatches: () -> Unit) {
@@ -89,6 +89,7 @@ fun ImportScreen(vm: ImportViewModel, appVm: AppViewModel, onBack: () -> Unit, o
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.import_export), onBack = if (step == ImportStep.PICK || step == ImportStep.DONE) onBack else vm::back) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -274,7 +275,7 @@ private fun ImportRowItem(row: ImportRow, issueLabels: Map<ImportIssue, String>,
             }
         },
         trailingContent = { StatusChip(label, tone) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        colors = retailListItemColors(MaterialTheme.colorScheme.background),
     )
 }
 

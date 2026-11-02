@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +51,7 @@ import com.kalaban.farshidb2011.ui.components.RetailCard
 import com.kalaban.farshidb2011.ui.components.SectionHeader
 import com.kalaban.farshidb2011.ui.components.Spacing
 import com.kalaban.farshidb2011.ui.components.Tone
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.navigation.Routes
 
 @Composable
@@ -260,7 +260,7 @@ fun DashboardScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                         )
                     }
                 }
@@ -295,6 +295,6 @@ private fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, onCl
         headlineContent = { Text(label, color = MaterialTheme.colorScheme.onSurface) },
         leadingContent = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         modifier = Modifier.clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
     )
 }

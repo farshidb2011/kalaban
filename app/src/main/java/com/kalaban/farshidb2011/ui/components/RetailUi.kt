@@ -3,6 +3,7 @@ package com.kalaban.farshidb2011.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,11 +44,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -240,11 +240,26 @@ fun retailTextFieldColors() = OutlinedTextFieldDefaults.colors(
     errorContainerColor = MaterialTheme.colorScheme.surface,
     focusedLabelColor = retailReadableOnSurfaceVariant(),
     unfocusedLabelColor = retailReadableOnSurfaceVariant(),
+    disabledLabelColor = retailReadableOnSurfaceVariant().copy(alpha = 0.6f),
     focusedPlaceholderColor = retailReadableOnSurfaceVariant(),
     unfocusedPlaceholderColor = retailReadableOnSurfaceVariant(),
+    focusedSupportingTextColor = retailReadableOnSurfaceVariant(),
+    unfocusedSupportingTextColor = retailReadableOnSurfaceVariant(),
     focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
     unfocusedLeadingIconColor = retailReadableOnSurfaceVariant(),
 )
+
+/** List rows that never inherit TopAppBar white content color. */
+@Composable
+fun retailListItemColors(containerColor: Color = MaterialTheme.colorScheme.surface) =
+    ListItemDefaults.colors(
+        containerColor = containerColor,
+        headlineColor = MaterialTheme.colorScheme.onSurface,
+        supportingColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        trailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        overlineColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -387,7 +402,10 @@ fun RetailBottomTab(
     }
 }
 
-/** Language / option chips with forced readable label colors in light and dark. */
+/**
+ * Category / filter chip that never relies on Material3 FilterChip LocalContentColor.
+ * FilterChip was painting selected labels white (TopAppBar onPrimary leak) on light cream.
+ */
 @Composable
 fun RetailFilterChip(
     selected: Boolean,
@@ -396,32 +414,26 @@ fun RetailFilterChip(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        modifier = modifier,
-        label = {
-            Text(
-                label,
-                color = if (selected) scheme.onSecondaryContainer else scheme.onSurface,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = scheme.surface,
-            labelColor = scheme.onSurface,
-            selectedContainerColor = scheme.secondaryContainer,
-            selectedLabelColor = scheme.onSecondaryContainer,
-            iconColor = scheme.onSurface,
-            selectedLeadingIconColor = scheme.onSecondaryContainer,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = scheme.outline.copy(alpha = 0.45f),
-            selectedBorderColor = scheme.tertiary,
-        ),
-    )
+    val container = if (selected) scheme.secondaryContainer else scheme.surface
+    val labelColor = if (selected) scheme.onSecondaryContainer else scheme.onSurface
+    val borderColor = if (selected) scheme.tertiary else scheme.outline.copy(alpha = 0.45f)
+    Box(
+        modifier = modifier
+            .defaultMinSize(minHeight = 36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(container)
+            .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = labelColor,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+        )
+    }
 }
 
 

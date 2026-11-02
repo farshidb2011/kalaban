@@ -31,7 +31,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -92,6 +91,7 @@ import com.kalaban.farshidb2011.ui.components.StatusChip
 import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.theme.semantic
 import java.math.BigDecimal
 import java.util.Calendar
@@ -126,6 +126,7 @@ fun FormulasScreen(
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(
@@ -240,6 +241,7 @@ fun FormulaEditorScreen(
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(if (id == 0L) R.string.new_formula else R.string.edit_formula), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         if (!state.loaded) {
@@ -447,7 +449,7 @@ private fun FormulaVersions(vm: PricingViewModel, formulaId: Long, onRestore: (L
                 trailingContent = {
                     IconButton(onClick = { onRestore(v.id) }) { Icon(Icons.Outlined.Restore, stringResource(R.string.restore), tint = MaterialTheme.colorScheme.primary) }
                 },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = retailListItemColors(MaterialTheme.colorScheme.surface),
             )
         }
     }
@@ -522,6 +524,7 @@ fun BulkPriceScreen(vm: PricingViewModel, appVm: AppViewModel, onBack: () -> Uni
             })
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(
@@ -701,7 +704,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.previewItems(p: BulkPreview, 
                     r.warnings.forEach { Text("• " + warningLabel(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.semantic.warning) }
                 }
             },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+            colors = retailListItemColors(MaterialTheme.colorScheme.background),
         )
     }
     if (p.rows.size > 300) {
@@ -749,6 +752,7 @@ fun PriceBatchesScreen(vm: PricingViewModel, appVm: AppViewModel, onBack: () -> 
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.price_batches), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         if (batches.isEmpty()) {
@@ -789,7 +793,7 @@ fun PriceBatchesScreen(vm: PricingViewModel, appVm: AppViewModel, onBack: () -> 
                                 TextButton(onClick = { cancelTarget = b.id }) { Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.error) }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
@@ -826,6 +830,7 @@ fun PriceBatchScreen(id: Long, vm: PricingViewModel, appVm: AppViewModel, onBack
     Scaffold(
         topBar = { RetailTopAppBar(batch?.title ?: stringResource(R.string.price_batches), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -874,7 +879,7 @@ fun PriceBatchScreen(id: Long, vm: PricingViewModel, appVm: AppViewModel, onBack
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.background),
                     )
                 }
             }
@@ -917,6 +922,7 @@ fun DiscountRulesScreen(vm: PricingViewModel, appVm: AppViewModel, onBack: () ->
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -941,7 +947,7 @@ fun DiscountRulesScreen(vm: PricingViewModel, appVm: AppViewModel, onBack: () ->
                                 }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }

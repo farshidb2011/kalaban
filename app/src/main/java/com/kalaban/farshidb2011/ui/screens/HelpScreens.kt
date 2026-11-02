@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -58,6 +57,7 @@ import com.kalaban.farshidb2011.ui.components.SearchField
 import com.kalaban.farshidb2011.ui.components.SectionHeader
 import com.kalaban.farshidb2011.ui.components.Spacing
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.theme.Ink40
 
 @Composable
@@ -70,6 +70,7 @@ fun HelpCenterScreen(appVm: AppViewModel, onBack: () -> Unit, onOpen: (String) -
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.help_center), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -81,7 +82,7 @@ fun HelpCenterScreen(appVm: AppViewModel, onBack: () -> Unit, onOpen: (String) -
                         headlineContent = { Text(a.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold) },
                         supportingContent = { Text(a.summary, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         leadingContent = { Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
@@ -97,6 +98,7 @@ fun HelpArticleScreen(id: String, appVm: AppViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = { RetailTopAppBar(article?.title ?: stringResource(R.string.help_center), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         if (article == null) {
@@ -117,7 +119,7 @@ fun HelpArticleScreen(id: String, appVm: AppViewModel, onBack: () -> Unit) {
                             ListItem(
                                 headlineContent = { Text(tip, style = MaterialTheme.typography.bodyMedium) },
                                 leadingContent = { Icon(Icons.Outlined.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                colors = retailListItemColors(MaterialTheme.colorScheme.surfaceVariant),
                                 modifier = Modifier.clip(RoundedCornerShape(12.dp)),
                             )
                         }
@@ -158,6 +160,7 @@ fun AboutScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.about), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -189,7 +192,7 @@ fun AboutScreen(onBack: () -> Unit) {
                             ListItem(
                                 headlineContent = { Text(stringResource(cap), style = MaterialTheme.typography.bodyMedium) },
                                 leadingContent = { Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                colors = retailListItemColors(Color.Transparent),
                             )
                         }
                     }
@@ -213,7 +216,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         supportingContent = {
                             Text(licenseName + if (asset != null) " · ${stringResource(R.string.view_license)}" else "", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }

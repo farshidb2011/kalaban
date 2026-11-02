@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Switch
@@ -76,6 +75,7 @@ import com.kalaban.farshidb2011.ui.components.Spacing
 import com.kalaban.farshidb2011.ui.components.StatusChip
 import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.theme.semantic
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -471,7 +471,7 @@ private fun PriceChangesTab(appVm: AppViewModel, reportsVm: ReportsViewModel, on
                         }
                     },
                     modifier = Modifier.clickable { onOpenProduct(c.history.itemId) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                    colors = retailListItemColors(MaterialTheme.colorScheme.background),
                 )
             }
             if (list.isNotEmpty() && appVm.can(Permission.EXPORT_DATA)) {

@@ -48,7 +48,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -121,6 +120,7 @@ import com.kalaban.farshidb2011.ui.components.StatusChip
 import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.theme.semantic
 import java.io.File
 import java.math.BigDecimal
@@ -150,6 +150,7 @@ fun ProductsScreen(
     var moveDialog by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val selecting = selection.isNotEmpty()
+    val showCosts = appVm.can(Permission.VIEW_COSTS)
 
     Scaffold(
         floatingActionButton = {
@@ -162,6 +163,7 @@ fun ProductsScreen(
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(embedded = true),
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
@@ -308,7 +310,7 @@ fun ProductsScreen(
                                 onLongClick = { vm.toggleSelection(item.id) },
                             ),
                         ) {
-                            ProductRow(item, unitName, categoryName, settings.currencyCode, selected)
+                            ProductRow(item, unitName, categoryName, settings.currencyCode, selected, showCosts)
                         }
                     }
                 }
@@ -355,12 +357,26 @@ fun ProductsScreen(
 }
 
 @Composable
-private fun ProductRow(item: ItemEntity, unitName: String?, categoryName: String?, currency: String, selected: Boolean) {
+private fun ProductRow(
+    item: ItemEntity,
+    unitName: String?,
+    categoryName: String?,
+    currency: String,
+    selected: Boolean,
+    showCosts: Boolean,
+) {
     ListItem(
         headlineContent = { Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface) },
         supportingContent = {
             Column {
                 MoneyText(Money.of(item.sellPrice), currency = currency, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.tertiary)
+                if (showCosts) {
+                    Text(
+                        "${stringResource(R.string.purchase_price)}: ${Money.format(item.purchasePrice)} $currency",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
                     listOfNotNull(
                         "${stringResource(R.string.stock)}: ${Money.input(item.stockQty)} ${stringResource(R.string.stock_pieces)}",
@@ -387,8 +403,8 @@ private fun ProductRow(item: ItemEntity, unitName: String?, categoryName: String
                 Box(Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))) { ItemThumb(item.imageUri) }
             }
         },
-        colors = ListItemDefaults.colors(
-            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        colors = retailListItemColors(
+            if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
         ),
     )
 }
@@ -447,6 +463,7 @@ fun ProductDetailScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         val current = item
@@ -483,7 +500,13 @@ fun ProductDetailScreen(
                 RetailCard {
                     Column(Modifier.padding(Spacing.l)) {
                         Text(stringResource(R.string.prices), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                        KeyValueRow(stringResource(R.string.sell_price_base), Money.format(current.sellPrice) + " $currency", emphasize = true)
+                        KeyValueRow(stringResource(R.string.sell_price), Money.format(current.sellPrice) + " $currency", emphasize = true)
+                        if (showCosts) {
+                            KeyValueRow(stringResource(R.string.purchase_price), Money.format(current.purchasePrice) + " $currency")
+                            if (d != null) {
+                                KeyValueRow(stringResource(R.string.full_cost), Money.format(d.result.cost.fullCost) + " $currency")
+                            }
+                        }
                         if (d != null) {
                             KeyValueRow(stringResource(R.string.cash_price), Money.format(d.storedSale.cashPrice) + " $currency")
                             KeyValueRow(stringResource(R.string.credit_price), Money.format(d.storedSale.creditPrice) + " $currency")
@@ -583,7 +606,7 @@ fun ProductDetailScreen(
                         )
                     },
                     leadingContent = { Icon(Icons.Outlined.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                    colors = retailListItemColors(MaterialTheme.colorScheme.background),
                 )
             }
         }
@@ -725,6 +748,7 @@ fun ProductEditorScreen(
     Scaffold(
         topBar = { RetailTopAppBar(title = stringResource(if (id == 0L) R.string.new_product else R.string.edit_item), onBack = onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         if (!state.loaded) {

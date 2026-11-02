@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -325,11 +326,17 @@ fun KalabanNavHost(vm: AppViewModel = viewModel(factory = AppViewModel.factory()
                         hostState = snackbar,
                         modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp),
                     ) { data ->
-                        Snackbar(
-                            snackbarData = data,
-                            containerColor = MaterialTheme.colorScheme.inverseSurface,
-                            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        )
+                        val scheme = MaterialTheme.colorScheme
+                        // Explicit inverse pair so dark theme never shows pale text on a white plate.
+                        CompositionLocalProvider(LocalContentColor provides scheme.inverseOnSurface) {
+                            Snackbar(
+                                snackbarData = data,
+                                containerColor = scheme.inverseSurface,
+                                contentColor = scheme.inverseOnSurface,
+                                actionColor = scheme.inversePrimary,
+                                dismissActionContentColor = scheme.inverseOnSurface,
+                            )
+                        }
                     }
                 }
             }
@@ -395,42 +402,45 @@ private fun RetailMainShell(
                     }
                 },
             )
-            NavHost(navController = tabNav, startDestination = Routes.DASHBOARD, modifier = Modifier.weight(1f)) {
-                composable(Routes.DASHBOARD) {
-                    DashboardScreen(
-                        appVm = vm,
-                        reportsVm = reports,
-                        pricingVm = pricing,
-                        onNavigate = { rootNav.navigate(it) },
-                        onOpenProducts = { lowStock ->
-                            products.setFilter { it.copy(lowStockOnly = lowStock) }
-                            selectTab(Routes.ITEMS)
-                        },
-                        onOpenAnalysis = {
-                            reports.setAnalysisFilter { it.copy(flags = setOf(AnalysisFlag.NEGATIVE_PROFIT, AnalysisFlag.LOW_MARGIN)) }
-                            onReportsTab(1)
-                            selectTab(Routes.REPORTS)
-                        },
-                    )
-                }
-                composable(Routes.ITEMS) {
-                    ProductsScreen(
-                        vm = products,
-                        appVm = vm,
-                        pricingVm = pricing,
-                        onOpen = { rootNav.navigate(Routes.productDetail(it)) },
-                        onNew = { rootNav.navigate(Routes.productEdit(0)) },
-                        onBulkPrice = { rootNav.navigate(Routes.BULK_PRICE) },
-                    )
-                }
-                composable(Routes.SALES) {
-                    SalesScreen(vm = vm, onBack = null, onNew = { rootNav.navigate(Routes.NEW_SALE) }, embedded = true)
-                }
-                composable(Routes.REPORTS) {
-                    ReportsHubScreen(vm, reports, admin, reportsTab) { rootNav.navigate(Routes.productDetail(it)) }
-                }
-                composable(Routes.MANAGE) {
-                    ManagementScreen(vm, onNavigate = { rootNav.navigate(it) }, onSignOut = onSignOut)
+            // Isolate body from TopAppBar's onPrimary LocalContentColor (white in light theme).
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+                NavHost(navController = tabNav, startDestination = Routes.DASHBOARD, modifier = Modifier.weight(1f)) {
+                    composable(Routes.DASHBOARD) {
+                        DashboardScreen(
+                            appVm = vm,
+                            reportsVm = reports,
+                            pricingVm = pricing,
+                            onNavigate = { rootNav.navigate(it) },
+                            onOpenProducts = { lowStock ->
+                                products.setFilter { it.copy(lowStockOnly = lowStock) }
+                                selectTab(Routes.ITEMS)
+                            },
+                            onOpenAnalysis = {
+                                reports.setAnalysisFilter { it.copy(flags = setOf(AnalysisFlag.NEGATIVE_PROFIT, AnalysisFlag.LOW_MARGIN)) }
+                                onReportsTab(1)
+                                selectTab(Routes.REPORTS)
+                            },
+                        )
+                    }
+                    composable(Routes.ITEMS) {
+                        ProductsScreen(
+                            vm = products,
+                            appVm = vm,
+                            pricingVm = pricing,
+                            onOpen = { rootNav.navigate(Routes.productDetail(it)) },
+                            onNew = { rootNav.navigate(Routes.productEdit(0)) },
+                            onBulkPrice = { rootNav.navigate(Routes.BULK_PRICE) },
+                        )
+                    }
+                    composable(Routes.SALES) {
+                        SalesScreen(vm = vm, onBack = null, onNew = { rootNav.navigate(Routes.NEW_SALE) }, embedded = true)
+                    }
+                    composable(Routes.REPORTS) {
+                        ReportsHubScreen(vm, reports, admin, reportsTab) { rootNav.navigate(Routes.productDetail(it)) }
+                    }
+                    composable(Routes.MANAGE) {
+                        ManagementScreen(vm, onNavigate = { rootNav.navigate(it) }, onSignOut = onSignOut)
+                    }
                 }
             }
             Surface(

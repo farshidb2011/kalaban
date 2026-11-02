@@ -90,8 +90,8 @@
 
     <string name="unit">واحد</string>
     <string name="pieces_per_unit">تعداد در هر واحد</string>
-    <string name="pack_total_price">قیمت کل واحد</string>
-    <string name="unit_piece_price">قیمت تک‌تک</string>
+    <string name="pack_total_price">قیمت خرید کل (بسته/واحد)</string>
+    <string name="unit_piece_price">قیمت خرید هر عدد</string>
     <string name="stock_in_units">موجودی (بر حسب واحد)</string>
     <string name="stock_pieces">عدد</string>
     <string name="select_category">دسته‌بندی</string>
@@ -791,4 +791,5 @@
     <string name="warn_missing_cost">هزینه ناقص</string>
     <string name="warn_outside_bounds">خارج از حدود قیمت</string>
     <string name="yes">بله</string>
+    <string name="cost_discount_room">تمام‌شده %1$s · سربه‌سر %2$s · جای تخفیف حدود %3$s</string>
 </resources>

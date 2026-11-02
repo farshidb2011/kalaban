@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,6 +87,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -142,6 +144,7 @@ import com.kalaban.farshidb2011.ui.components.RetailContent
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
 import com.kalaban.farshidb2011.ui.components.JalaliDateField
 import com.kalaban.farshidb2011.ui.components.SearchField
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.theme.semantic
 import com.kalaban.farshidb2011.core.Numbers
 import com.kalaban.farshidb2011.core.toAmountOrNull
@@ -149,7 +152,6 @@ import com.kalaban.farshidb2011.core.pricing.PriceCalculator
 import com.kalaban.farshidb2011.data.repository.AuthResult
 import com.kalaban.farshidb2011.data.repository.DisplayPriceMode
 import com.kalaban.farshidb2011.domain.Permission
-import androidx.compose.material3.ListItemDefaults
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -458,32 +460,46 @@ fun DisplayPanel(vm: AppViewModel, onOpenAdmin: () -> Unit) {
     }
     val hasUncategorized = items.any { it.categoryId == null }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        config.businessName.ifBlank { stringResource(R.string.display_panel) },
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        maxLines = 1,
+    // Custom top bar (not Material TopAppBar): TopAppBar's onPrimary LocalContentColor
+    // was leaking into body after category recomposition and bleaching chip/card text white.
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    config.businessName.ifBlank { stringResource(R.string.display_panel) },
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onOpenAdmin) {
+                    Icon(
+                        Icons.Outlined.AdminPanelSettings,
+                        contentDescription = stringResource(R.string.open_admin),
+                        tint = Color.White,
                     )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                actions = {
-                    IconButton(onClick = onOpenAdmin) {
-                        Icon(Icons.Outlined.AdminPanelSettings, contentDescription = stringResource(R.string.open_admin))
-                    }
-                },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = retailContentWindowInsets(embedded = false),
-    ) { pad ->
-        Column(Modifier.padding(pad).padding(horizontal = 16.dp)) {
+                }
+            }
+        }
+        CompositionLocalProvider(
+            LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+            LocalTextStyle provides MaterialTheme.typography.bodyLarge.copy(color = Color.Unspecified),
+        ) {
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
             RetailTextField(
                 value = q,
                 onValueChange = { q = it; vm.setQuery(it) },
@@ -580,6 +596,7 @@ fun DisplayPanel(vm: AppViewModel, onOpenAdmin: () -> Unit) {
                     }
                 }
             }
+        }
         }
     }
     previewUri?.let { uri ->
@@ -1051,6 +1068,7 @@ fun SalesScreen(
             ) { Icon(Icons.Default.Add, null) }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(embedded = embedded),
     ) { pad ->
         if (sales.isEmpty()) {
@@ -1274,6 +1292,7 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
     val canSubmit = cart.isNotEmpty() && buyer.isNotBlank() && !dateError
     val pricingContext by vm.pricingContext.collectAsStateWithLifecycle()
     val canEditPrice = vm.can(Permission.EDIT_SALE_PRICE)
+    val showCosts = vm.can(Permission.VIEW_COSTS)
     var itemSearch by rememberSaveable { mutableStateOf("") }
     val quantity = qty.toAmountOrNull()
     val quote = remember(selectedItem, quantity, credit, pricingContext) {
@@ -1392,7 +1411,8 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                     supportingContent = {
                                         Text(
                                             listOfNotNull(
-                                                vm.quote(item, 1.0, credit)?.let { Money.format(it.unitPrice) },
+                                                vm.quote(item, 1.0, credit)?.let { "${stringResource(R.string.sell_price)} ${Money.format(it.unitPrice)}" },
+                                                if (showCosts) "${stringResource(R.string.purchase_price)} ${Money.format(item.purchasePrice)}" else null,
                                                 item.sku?.takeIf { it.isNotBlank() },
                                                 "${stringResource(R.string.stock)}: ${Money.input(item.stockQty)}",
                                             ).joinToString(" · "),
@@ -1404,7 +1424,7 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                         vm.updateNewSaleDraft { it.copy(selectedItemId = item.id) }
                                         itemSearch = ""
                                     },
-                                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                    colors = retailListItemColors(MaterialTheme.colorScheme.surfaceVariant),
                                 )
                             }
                             if (itemSearch.isNotBlank() && matches.isEmpty()) {
@@ -1442,6 +1462,19 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 supportingText = if (!canEditPrice) stringResource(R.string.price_edit_not_allowed) else null,
                             )
                             quote?.let { qt ->
+                                if (showCosts && qt.unitCost.signum() > 0) {
+                                    val room = qt.unitPrice.subtract(qt.unitCost)
+                                    Text(
+                                        stringResource(
+                                            R.string.cost_discount_room,
+                                            Money.format(qt.unitCost),
+                                            Money.format(qt.breakEven),
+                                            Money.format(room.coerceAtLeast(java.math.BigDecimal.ZERO)),
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 if (qt.discountPct.signum() > 0) {
                                     Text(
                                         stringResource(R.string.tier_discount_applied, Money.input(qt.discountPct), Money.format(qt.listPrice)),
@@ -1452,7 +1485,7 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 val typed = unitPriceText.toAmountOrNull()?.let(Money::of)
                                 if (typed != null && qt.minimum != null && typed < qt.minimum) {
                                     Text(stringResource(R.string.below_minimum_price, Money.format(qt.minimum)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                                } else if (typed != null && qt.unitCost.signum() > 0 && typed < qt.breakEven && vm.can(Permission.VIEW_COSTS)) {
+                                } else if (typed != null && qt.unitCost.signum() > 0 && typed < qt.breakEven && showCosts) {
                                     Text(stringResource(R.string.below_break_even, Money.format(qt.breakEven)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                 }
                             }
@@ -1619,6 +1652,7 @@ fun CreditsScreen(vm: AppViewModel, onBack: () -> Unit) {
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
         Column(
@@ -1933,6 +1967,7 @@ fun BackupScreen(vm: AppViewModel, onBack: () -> Unit, onOpenImport: () -> Unit)
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
         Column(
@@ -2052,6 +2087,7 @@ fun DollarHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(embedded = false),
     ) { pad ->
         if (history.isEmpty()) {

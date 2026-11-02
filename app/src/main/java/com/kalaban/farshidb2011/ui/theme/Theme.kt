@@ -50,6 +50,10 @@ private val LightColorScheme = lightColorScheme(
     onError = LightOnError,
     errorContainer = LightErrorContainer,
     onErrorContainer = LightOnErrorContainer,
+    // Snackbar / inverse surfaces: dark ink plate with white type in light theme.
+    inverseSurface = Ink40,
+    inverseOnSurface = Color.White,
+    inversePrimary = Copper80,
 )
 
 // Dark: copper-forward chrome so buttons/tabs aren't washed gray.
@@ -83,6 +87,10 @@ private val DarkColorScheme = darkColorScheme(
     onError = DarkOnError,
     errorContainer = DarkErrorContainer,
     onErrorContainer = DarkOnErrorContainer,
+    // Snackbar in dark theme: cream plate with dark type (never white-on-white).
+    inverseSurface = Color(0xFFF2EDE6),
+    inverseOnSurface = Color(0xFF1C1917),
+    inversePrimary = Copper40,
 )
 
 /** Status roles Material 3 lacks; profit/loss and alerts use these instead of ad-hoc colors. */

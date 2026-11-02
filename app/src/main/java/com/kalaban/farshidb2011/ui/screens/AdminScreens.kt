@@ -54,7 +54,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -116,6 +115,7 @@ import com.kalaban.farshidb2011.ui.components.StatusChip
 import com.kalaban.farshidb2011.ui.components.Tone
 import com.kalaban.farshidb2011.ui.components.retailContentWindowInsets
 import com.kalaban.farshidb2011.ui.components.retailSwitchColors
+import com.kalaban.farshidb2011.ui.components.retailListItemColors
 import com.kalaban.farshidb2011.ui.navigation.Routes
 import java.text.DateFormat
 import java.util.Date
@@ -179,7 +179,7 @@ fun ManagementScreen(appVm: AppViewModel, onNavigate: (String) -> Unit, onSignOu
                                 Text(stringResource(R.string.sign_out))
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
@@ -196,7 +196,7 @@ fun ManagementScreen(appVm: AppViewModel, onNavigate: (String) -> Unit, onSignOu
                                 supportingContent = { Text(stringResource(e.subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                                 leadingContent = { Icon(e.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                                 modifier = Modifier.clickable { onNavigate(e.route) },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                                colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                             )
                             if (i < visible.lastIndex) RetailDivider()
                         }
@@ -252,6 +252,7 @@ fun PricingRulesScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack: () 
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.pricing_rules), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize().imePadding(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -369,6 +370,7 @@ fun GeneralSettingsScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack: 
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.general_settings), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize().imePadding(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -501,6 +503,7 @@ fun SecuritySettingsScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack:
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.security), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize().imePadding(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -572,7 +575,7 @@ fun SecuritySettingsScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack:
                             supportingContent = { Text(stringResource(R.string.users_sub), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             leadingContent = { Icon(Icons.Outlined.Group, null, tint = MaterialTheme.colorScheme.primary) },
                             modifier = Modifier.clickable { onNavigate(Routes.USERS) },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                         )
                         RetailDivider()
                         ListItem(
@@ -580,7 +583,7 @@ fun SecuritySettingsScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack:
                             supportingContent = { Text(stringResource(R.string.roles_sub), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             leadingContent = { Icon(Icons.Outlined.Badge, null, tint = MaterialTheme.colorScheme.primary) },
                             modifier = Modifier.clickable { onNavigate(Routes.ROLES) },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                         )
                     }
                 }
@@ -598,6 +601,7 @@ fun NotificationSettingsScreen(adminVm: AdminViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = { RetailTopAppBar(stringResource(R.string.notification_settings), onBack) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -661,6 +665,7 @@ fun UsersScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: () ->
             ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_user)) }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -690,7 +695,7 @@ fun UsersScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: () ->
                                 IconButton(onClick = { deleteTarget = u }) { Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error) }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
@@ -778,6 +783,7 @@ fun RolesScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: () ->
             ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_role)) }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -793,7 +799,7 @@ fun RolesScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: () ->
                                 else IconButton(onClick = { deleteTarget = r }) { Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error) }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
@@ -890,6 +896,7 @@ fun AuditLogScreen(adminVm: AdminViewModel, appVm: AppViewModel, onBack: () -> U
             })
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -945,6 +952,7 @@ fun AttributesScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: 
             ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_attribute)) }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = retailContentWindowInsets(),
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -967,7 +975,7 @@ fun AttributesScreen(adminVm: AdminViewModel, settings: SettingsEntity, onBack: 
                                 IconButton(onClick = { deleteTarget = d }) { Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error) }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = retailListItemColors(MaterialTheme.colorScheme.surface),
                     )
                 }
             }
