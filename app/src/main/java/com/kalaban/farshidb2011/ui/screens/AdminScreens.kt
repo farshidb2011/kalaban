@@ -606,11 +606,11 @@ fun NotificationSettingsScreen(adminVm: AdminViewModel, onBack: () -> Unit) {
                 RetailCard {
                     Column(Modifier.padding(Spacing.l)) {
                         listOf(
-                            Triple(R.string.notify_credit, config.notifyCreditReminders) { v: Boolean -> adminVm.updateConfig { it.copy(notifyCreditReminders = v) } },
-                            Triple(R.string.notify_low_stock, config.notifyLowStock) { v: Boolean -> adminVm.updateConfig { it.copy(notifyLowStock = v) } },
-                            Triple(R.string.notify_negative_profit, config.notifyNegativeProfit) { v: Boolean -> adminVm.updateConfig { it.copy(notifyNegativeProfit = v) } },
-                            Triple(R.string.notify_low_margin, config.notifyLowMargin) { v: Boolean -> adminVm.updateConfig { it.copy(notifyLowMargin = v) } },
-                            Triple(R.string.notify_scheduled, config.notifyScheduledPrices) { v: Boolean -> adminVm.updateConfig { it.copy(notifyScheduledPrices = v) } },
+                            Triple(R.string.notify_credit, config.notifyCreditReminders) { v: Boolean -> adminVm.updateConfig { it.copy(notifyCreditReminders = v) }; Unit },
+                            Triple(R.string.notify_low_stock, config.notifyLowStock) { v: Boolean -> adminVm.updateConfig { it.copy(notifyLowStock = v) }; Unit },
+                            Triple(R.string.notify_negative_profit, config.notifyNegativeProfit) { v: Boolean -> adminVm.updateConfig { it.copy(notifyNegativeProfit = v) }; Unit },
+                            Triple(R.string.notify_low_margin, config.notifyLowMargin) { v: Boolean -> adminVm.updateConfig { it.copy(notifyLowMargin = v) }; Unit },
+                            Triple(R.string.notify_scheduled, config.notifyScheduledPrices) { v: Boolean -> adminVm.updateConfig { it.copy(notifyScheduledPrices = v) }; Unit },
                         ).forEach { (label, checked, set) ->
                             Row(Modifier.heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(stringResource(label), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)

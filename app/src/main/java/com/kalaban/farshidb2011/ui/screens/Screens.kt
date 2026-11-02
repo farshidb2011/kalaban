@@ -137,7 +137,6 @@ import com.kalaban.farshidb2011.data.local.entity.PaymentType
 import com.kalaban.farshidb2011.data.local.entity.SettingsEntity
 import com.kalaban.farshidb2011.data.repository.ShopRepository
 import com.kalaban.farshidb2011.ui.AppViewModel
-import com.kalaban.farshidb2011.ui.ItemFormDraft
 import com.kalaban.farshidb2011.ui.SaleCartLineDraft
 import com.kalaban.farshidb2011.ui.components.RetailCard
 import com.kalaban.farshidb2011.ui.components.RetailDivider
