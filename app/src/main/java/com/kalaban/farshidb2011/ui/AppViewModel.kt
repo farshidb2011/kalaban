@@ -1,22 +1,27 @@
 package com.kalaban.farshidb2011.ui
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import com.kalaban.farshidb2011.KalabanApp
+import com.kalaban.farshidb2011.R
 import com.kalaban.farshidb2011.core.JalaliDate
 import com.kalaban.farshidb2011.core.Money
-import com.kalaban.farshidb2011.core.PricingEngine
+import com.kalaban.farshidb2011.core.pricing.PriceCalculator
 import com.kalaban.farshidb2011.data.local.entity.CategoryEntity
 import com.kalaban.farshidb2011.data.local.entity.ItemEntity
 import com.kalaban.farshidb2011.data.local.entity.PaymentType
 import com.kalaban.farshidb2011.data.local.entity.SaleEntity
 import com.kalaban.farshidb2011.data.local.entity.SettingsEntity
 import com.kalaban.farshidb2011.data.local.entity.UnitEntity
+import com.kalaban.farshidb2011.data.repository.AuditAction
+import com.kalaban.farshidb2011.data.repository.AuditEntity
+import com.kalaban.farshidb2011.data.repository.AuthResult
+import com.kalaban.farshidb2011.data.repository.PricingContext
 import com.kalaban.farshidb2011.data.repository.ShopRepository
+import com.kalaban.farshidb2011.domain.Permission
 import com.kalaban.farshidb2011.notifications.ReminderNotifications
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,30 +32,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
-
-/** In-progress product form — survives configuration changes via ViewModel. */
-data class ItemFormDraft(
-    val showForm: Boolean = false,
-    val editingId: Long = 0L,
-    val title: String = "",
-    val packTotal: String = "",
-    val piecesPerUnitText: String = "1",
-    val stockUnits: String = "",
-    val lowStockThresholdText: String = "1",
-    val sku: String = "",
-    val selectedUnitId: Long? = null,
-    val selectedCategoryId: Long? = null,
-    val imageUri: String? = null,
-    val pendingCameraUri: String? = null,
-    val listQuery: String = "",
-)
+import java.math.BigDecimal
 
 data class SaleCartLineDraft(
     val itemId: Long,
     val title: String,
     val quantity: Double,
     val unitPrice: Double,
+    val unitCost: Double? = null,
+    val taxPerUnit: Double = 0.0,
+    val discountPerUnit: Double = 0.0,
 )
 
 /** In-progress new-sale form — survives configuration changes via ViewModel. */
@@ -65,12 +58,20 @@ data class NewSaleDraft(
     val cart: List<SaleCartLineDraft> = emptyList(),
 )
 
+/** Counter price for one sale line under the current rules and quantity tiers. */
+data class LineQuote(
+    val unitPrice: BigDecimal,
+    val listPrice: BigDecimal,
+    val discountPct: BigDecimal,
+    val unitCost: BigDecimal,
+    val breakEven: BigDecimal,
+    val minimum: BigDecimal?,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
-class AppViewModel(
-    application: Application,
-    private val repo: ShopRepository = KalabanApp.instance.repository,
-    private val secure: com.kalaban.farshidb2011.data.prefs.SecurePrefs = KalabanApp.instance.securePrefs,
-) : AndroidViewModel(application) {
+class AppViewModel(application: Application) : GuardedViewModel(application) {
+    private val repo: ShopRepository get() = app.repository
+    private val secure get() = app.securePrefs
 
     private val query = MutableStateFlow("")
 
@@ -91,7 +92,9 @@ class AppViewModel(
     val openCredits = repo.observeOpenCredits().stateIn(viewModelScope, keepAlive, emptyList())
     val lowStock = repo.observeLowStock().stateIn(viewModelScope, keepAlive, emptyList())
     val dollarHistory = repo.observeDollarHistory().stateIn(viewModelScope, keepAlive, emptyList())
-    val unlocked = secure.sessionUnlocked.stateIn(viewModelScope, keepAlive, false)
+    val config = app.config.config
+    val sessionUser = session.user
+    val unlocked = session.user.map { it != null }.stateIn(viewModelScope, keepAlive, false)
     val hasPin = secure.pinHash.map { !it.isNullOrBlank() }
         .stateIn(viewModelScope, keepAlive, false)
     val themeMode: StateFlow<String?> = secure.themeMode
@@ -104,43 +107,18 @@ class AppViewModel(
     private val _backupMessage = MutableStateFlow<String?>(null)
     val backupMessage: StateFlow<String?> = _backupMessage
 
-    private val _itemForm = MutableStateFlow(ItemFormDraft())
-    val itemForm: StateFlow<ItemFormDraft> = _itemForm.asStateFlow()
-
     private val _newSaleDraft = MutableStateFlow(NewSaleDraft())
     val newSaleDraft: StateFlow<NewSaleDraft> = _newSaleDraft.asStateFlow()
 
+    /** Set after a price-affecting settings change; the UI offers a previewed recalculation. */
+    private val _pendingRecalc = MutableStateFlow(false)
+    val pendingRecalc: StateFlow<Boolean> = _pendingRecalc.asStateFlow()
+
+    private val _pricingContext = MutableStateFlow<PricingContext?>(null)
+    val pricingContext: StateFlow<PricingContext?> = _pricingContext.asStateFlow()
+
     fun setQuery(value: String) {
         query.value = value
-    }
-
-    fun updateItemForm(transform: (ItemFormDraft) -> ItemFormDraft) {
-        _itemForm.update(transform)
-    }
-
-    fun resetItemForm(defaultUnitId: Long? = null) {
-        _itemForm.value = ItemFormDraft(selectedUnitId = defaultUnitId)
-        query.value = ""
-    }
-
-    fun openItemForm(item: ItemEntity) {
-        val pieces = item.piecesPerUnit.coerceAtLeast(1.0)
-        val threshold = item.lowStockThreshold.coerceAtLeast(0.0)
-        val thresholdStr = if (threshold % 1.0 == 0.0) threshold.toLong().toString() else Money.format(threshold)
-        _itemForm.value = ItemFormDraft(
-            showForm = true,
-            editingId = item.id,
-            title = item.title,
-            piecesPerUnitText = if (pieces == 1.0) "1" else if (pieces % 1.0 == 0.0) pieces.toLong().toString() else pieces.toString(),
-            packTotal = if (item.purchasePrice == 0.0) "" else Money.format(item.purchasePrice * pieces),
-            stockUnits = if (item.stockQty == 0.0) "" else Money.format(item.stockQty / pieces),
-            lowStockThresholdText = thresholdStr,
-            sku = item.sku.orEmpty(),
-            selectedUnitId = item.unitId,
-            selectedCategoryId = item.categoryId,
-            imageUri = item.imageUri,
-        )
-        query.value = ""
     }
 
     fun updateNewSaleDraft(transform: (NewSaleDraft) -> NewSaleDraft) {
@@ -151,139 +129,107 @@ class AppViewModel(
         _newSaleDraft.value = NewSaleDraft()
     }
 
-    fun saveItem(
-        id: Long,
-        title: String,
-        unitId: Long,
-        categoryId: Long?,
-        purchasePrice: Double,
-        purchaseDollarRate: Double,
-        piecesPerUnit: Double = 1.0,
-        stockQty: Double,
-        lowStockThreshold: Double,
-        sku: String?,
-        imageUri: String?,
-    ) {
-        viewModelScope.launch {
-            val s = settings.value
-            val pieces = piecesPerUnit.coerceAtLeast(1.0)
-            val rate = repo.getItem(id)?.let {
-                PricingEngine.purchaseRateAfterEdit(
-                    previousPurchasePrice = it.purchasePrice,
-                    previousPurchaseRate = it.purchaseDollarRate,
-                    newPurchasePrice = purchasePrice,
-                    currentDollarRate = purchaseDollarRate,
-                )
-            } ?: purchaseDollarRate
-            val sell = PricingEngine.recalculateSellPrice(
-                purchasePrice, rate, s.dollarRate, s.managerPercent,
-            )
-            repo.upsertItem(
-                ItemEntity(
-                    id = id,
-                    title = title,
-                    unitId = unitId,
-                    categoryId = categoryId,
-                    purchasePrice = purchasePrice,
-                    purchaseDollarRate = rate,
-                    sellPrice = sell,
-                    piecesPerUnit = pieces,
-                    stockQty = stockQty,
-                    lowStockThreshold = lowStockThreshold,
-                    sku = sku?.ifBlank { null },
-                    imageUri = imageUri,
-                ),
-            )
-        }
+    fun dismissRecalcPrompt() {
+        _pendingRecalc.value = false
     }
 
-    fun deleteItem(id: Long, onError: ((String) -> Unit)? = null) = viewModelScope.launch {
-        try {
-            repo.deleteItem(id)
-        } catch (_: Exception) {
-            onError?.invoke("in_use")
-        }
-    }
-
-    fun importAndSetItemImage(sourceUri: String) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        val durableUri = repo.importImageToInternalStorage(sourceUri)
-        _itemForm.update { it.copy(imageUri = durableUri, pendingCameraUri = null) }
-    }
-
-    fun setThemeMode(mode: String) = viewModelScope.launch {
+    fun setThemeMode(mode: String) = launchSafely {
         secure.setThemeMode(mode)
         when (mode) {
-            "dark" -> patchSettings { it.copy(displayDarkMode = true) }
-            "light" -> patchSettings { it.copy(displayDarkMode = false) }
+            "dark" -> repo.updateSettings(repo.getSettings().copy(displayDarkMode = true))
+            "light" -> repo.updateSettings(repo.getSettings().copy(displayDarkMode = false))
         }
     }
 
-    fun saveUnit(id: Long = 0L, nameFa: String, nameEn: String) = viewModelScope.launch {
-        repo.upsertUnit(
-            UnitEntity(
-                id = id,
-                nameFa = nameFa,
-                nameEn = nameEn.ifBlank { nameFa },
-            ),
-        )
+    // ---- Catalog (units & categories) ----
+
+    fun saveUnit(id: Long = 0L, nameFa: String, nameEn: String) = launchSafely {
+        if (!allowed(Permission.MANAGE_CATALOG)) return@launchSafely
+        repo.upsertUnit(UnitEntity(id = id, nameFa = nameFa, nameEn = nameEn.ifBlank { nameFa }))
+        app.audit.log(actor, AuditAction.CATALOG_UPDATE, AuditEntity.CATALOG, id.takeIf { it != 0L }, "unit: $nameFa / $nameEn")
     }
 
-    fun deleteUnit(id: Long, onError: ((String) -> Unit)? = null) = viewModelScope.launch {
+    fun deleteUnit(id: Long, onError: ((String) -> Unit)? = null) = launchSafely {
+        if (!allowed(Permission.MANAGE_CATALOG)) return@launchSafely
         try {
             repo.deleteUnit(id)
+            app.audit.log(actor, AuditAction.CATALOG_UPDATE, AuditEntity.CATALOG, id, "unit deleted")
         } catch (_: Exception) {
             onError?.invoke("in_use")
         }
     }
 
-    fun saveCategory(id: Long = 0L, nameFa: String, nameEn: String) = viewModelScope.launch {
-        repo.upsertCategory(
-            CategoryEntity(
-                id = id,
-                nameFa = nameFa,
-                nameEn = nameEn.ifBlank { nameFa },
-            ),
-        )
+    fun saveCategory(id: Long = 0L, nameFa: String, nameEn: String) = launchSafely {
+        if (!allowed(Permission.MANAGE_CATALOG)) return@launchSafely
+        repo.upsertCategory(CategoryEntity(id = id, nameFa = nameFa, nameEn = nameEn.ifBlank { nameFa }))
+        app.audit.log(actor, AuditAction.CATALOG_UPDATE, AuditEntity.CATALOG, id.takeIf { it != 0L }, "category: $nameFa / $nameEn")
     }
 
-    fun deleteCategory(id: Long, onError: ((String) -> Unit)? = null) = viewModelScope.launch {
+    fun deleteCategory(id: Long, onError: ((String) -> Unit)? = null) = launchSafely {
+        if (!allowed(Permission.MANAGE_CATALOG)) return@launchSafely
         try {
             repo.deleteCategory(id)
+            app.audit.log(actor, AuditAction.CATALOG_UPDATE, AuditEntity.CATALOG, id, "category deleted")
         } catch (_: Exception) {
             onError?.invoke("in_use")
         }
     }
 
-    fun saveSettings(s: SettingsEntity) = viewModelScope.launch {
+    // ---- Settings ----
+
+    private suspend fun persistSettings(s: SettingsEntity) {
         val normalized = s.copy(id = 1, languageTag = s.languageTag.ifBlank { "fa" })
-        repo.updateSettings(normalized)
-        // Sync AppCompat locales; Compose picks up language via AppLocaleProvider from settings Flow.
+        val change = repo.updateSettings(normalized)
+        change.diff()?.let { app.audit.log(actor, AuditAction.SETTINGS_UPDATE, AuditEntity.SETTINGS, 1, "settings", it) }
         KalabanApp.instance.applyLanguage(normalized.languageTag)
+        if (change.pricesAffected && app.config.current().recalcPrompt) _pendingRecalc.value = true
+        _pricingContext.value = null
+    }
+
+    /** Pricing rules (dollar rate, percentages) — require price management rights. */
+    fun savePricingRules(s: SettingsEntity, onSaved: () -> Unit = {}) = launchSafely {
+        if (!allowed(Permission.MANAGE_PRICES)) return@launchSafely
+        persistSettings(s)
+        UiMessages.post(R.string.saved_ok)
+        onSaved()
     }
 
     /** Patch persisted settings from the DB row so UI defaults cannot wipe other fields. */
-    fun patchSettings(transform: (SettingsEntity) -> SettingsEntity) = viewModelScope.launch {
-        val current = repo.getSettings()
-        val patched = transform(current).copy(id = 1)
-        val finalSettings = patched.copy(languageTag = patched.languageTag.ifBlank { "fa" })
-        repo.updateSettings(finalSettings)
-        KalabanApp.instance.applyLanguage(finalSettings.languageTag)
+    fun patchSettings(transform: (SettingsEntity) -> SettingsEntity) = launchSafely {
+        if (!allowed(Permission.MANAGE_SETTINGS)) return@launchSafely
+        persistSettings(transform(repo.getSettings()))
     }
 
-    fun recalculate() = viewModelScope.launch { repo.recalculateAllPrices() }
+    // ---- Sales ----
 
-    fun batchFactor(factor: Double) = viewModelScope.launch { repo.applyBatchPriceFactor(factor) }
+    fun refreshPricingContext() = launchSafely {
+        _pricingContext.value = app.pricing.loadContext()
+    }
 
-    fun unitPriceForSale(item: ItemEntity, installment: Boolean = false): Double {
-        val s = settings.value
-        return PricingEngine.saleUnitPrice(
-            storedSellPrice = item.sellPrice,
-            dollarChangePercent = s.dollarChangePercent,
-            taxPercent = s.taxPercent,
-            profitPercent = s.profitPercent,
-            installment = installment,
-            installmentDiffPercent = s.installmentDiffPercent,
+    /** Cash or credit unit price with the matching quantity tier, plus floor information for manual edits. */
+    fun quote(item: ItemEntity, quantity: Double, credit: Boolean): LineQuote? {
+        val ctx = _pricingContext.value ?: return null
+        val base = Money.of(item.sellPrice)
+        val discount = PriceCalculator.discountFor(Money.of(quantity), item.categoryId, ctx.tiers)
+        val sale = PriceCalculator.salePrice(base, ctx.policy, discount)
+        val list = if (discount.signum() > 0) PriceCalculator.salePrice(base, ctx.policy) else sale
+        val cost = PriceCalculator.cost(app.pricing.input(item).cost, ctx.policy)
+        val minimum = item.minPrice?.let { PriceCalculator.salePrice(Money.of(it), ctx.policy) }
+        return LineQuote(
+            unitPrice = if (credit) sale.creditPrice else sale.cashPrice,
+            listPrice = if (credit) list.creditPrice else list.cashPrice,
+            discountPct = discount,
+            unitCost = cost.fullCost,
+            breakEven = PriceCalculator.profit(sale, cost, ctx.policy).breakEvenPayable,
+            minimum = minimum?.let { if (credit) it.creditPrice else it.cashPrice },
         )
+    }
+
+    /** Tax portion of a tax-inclusive unit price at the current tax rate. */
+    fun taxPortion(unitPrice: Double): Double {
+        val tax = Money.of(settings.value.taxPercent)
+        if (tax.signum() <= 0) return 0.0
+        return Money.of(unitPrice).multiply(tax, Money.MC).divide(Money.HUNDRED.add(tax), Money.MC).toDouble()
     }
 
     fun recordSale(
@@ -291,10 +237,11 @@ class AppViewModel(
         type: PaymentType,
         lines: List<ShopRepository.CartLine>,
         dueMs: Long?,
-        jalaliDate: String = com.kalaban.farshidb2011.core.JalaliDate.today().format(),
+        jalaliDate: String = JalaliDate.today().format(),
         createdAtEpochMs: Long = System.currentTimeMillis(),
-    ) = viewModelScope.launch {
-        if (lines.isEmpty()) return@launch
+    ) = launchSafely {
+        if (!allowed(Permission.RECORD_SALES)) return@launchSafely
+        if (lines.isEmpty()) return@launchSafely
         val saleId = repo.recordSale(
             buyerName = buyer,
             paymentType = type,
@@ -302,102 +249,133 @@ class AppViewModel(
             dueAtEpochMs = dueMs,
             jalaliDate = jalaliDate,
             createdAtEpochMs = createdAtEpochMs,
+            createdBy = actor.name,
         )
-        repo.openCreditsSnapshot().find { it.id == saleId }?.let { sale ->
-            ReminderNotifications.scheduleForSale(getApplication(), sale)
-        } ?: run {
-            // Fresh sale may already be in DB with open balance 0 for cash
-            val sale = KalabanApp.instance.database.saleDao().getById(saleId)
-            if (sale != null) ReminderNotifications.scheduleForSale(getApplication(), sale)
+        val sale = app.database.saleDao().getById(saleId)
+        if (sale != null) {
+            if (app.config.current().notifyCreditReminders) ReminderNotifications.scheduleForSale(getApplication(), sale)
+            app.audit.log(actor, AuditAction.SALE_CREATE, AuditEntity.SALE, saleId, "$buyer: ${Money.input(sale.totalAmount)}", type.name)
         }
+        UiMessages.post(R.string.sale_recorded)
     }
 
-    fun partialPay(saleId: Long, amount: Double) =
-        viewModelScope.launch {
-            repo.addPartialPayment(saleId, amount)
-            KalabanApp.instance.database.saleDao().getById(saleId)?.let {
-                ReminderNotifications.scheduleForSale(getApplication(), it)
-            }
+    fun partialPay(saleId: Long, amount: Double) = launchSafely {
+        if (!allowed(Permission.MANAGE_CREDITS)) return@launchSafely
+        repo.addPartialPayment(saleId, amount)
+        app.database.saleDao().getById(saleId)?.let {
+            ReminderNotifications.scheduleForSale(getApplication(), it)
+            app.audit.log(actor, AuditAction.PAYMENT_ADD, AuditEntity.SALE, saleId, "${it.buyerName}: ${Money.input(amount)}")
         }
+        UiMessages.post(R.string.payment_recorded)
+    }
 
-    fun zeroBalance(saleId: Long, reason: String) =
-        viewModelScope.launch {
-            repo.zeroBalance(saleId, reason)
-            ReminderNotifications.cancelForSale(getApplication(), saleId)
-        }
+    fun zeroBalance(saleId: Long, reason: String) = launchSafely {
+        if (!allowed(Permission.MANAGE_CREDITS)) return@launchSafely
+        repo.zeroBalance(saleId, reason)
+        ReminderNotifications.cancelForSale(getApplication(), saleId)
+        app.audit.log(actor, AuditAction.BALANCE_ZERO, AuditEntity.SALE, saleId, reason)
+    }
 
-    fun loadReport(range: ShopRepository.ReportRange) = viewModelScope.launch {
+    fun loadReport(range: ShopRepository.ReportRange) = launchSafely {
         _report.value = repo.detailedSalesReport(range)
     }
 
-    fun loadReminders() = viewModelScope.launch {
+    fun loadReport(fromEpochMs: Long, toEpochMs: Long) = launchSafely {
+        _report.value = repo.detailedSalesReport(fromEpochMs, toEpochMs)
+    }
+
+    fun loadReminders() = launchSafely {
         _reminders.value = repo.dueReminders()
     }
 
-    fun exportTo(file: File) = viewModelScope.launch {
-        runCatching { repo.writeBackupFile(file) }
-            .onSuccess { _backupMessage.value = "OK: ${file.absolutePath}" }
+    // ---- Backup ----
+
+    private suspend fun markBackedUp() {
+        app.config.update { it.copy(lastBackupAt = System.currentTimeMillis()) }
+    }
+
+    fun exportTo(file: File) = launchSafely {
+        if (!allowed(Permission.EXPORT_DATA)) return@launchSafely
+        runCatching { withContext(Dispatchers.IO) { repo.writeBackupFile(file) } }
+            .onSuccess {
+                markBackedUp()
+                app.audit.log(actor, AuditAction.DATA_EXPORT, AuditEntity.DATA, summary = file.name)
+                _backupMessage.value = "OK: ${file.absolutePath}"
+            }
             .onFailure { _backupMessage.value = "Export failed: ${it.message ?: it.javaClass.simpleName}" }
     }
 
-    fun exportToUri(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        runCatching { repo.exportBackupToUri(uri) }
-            .onSuccess { _backupMessage.value = "OK: ${uri.lastPathSegment ?: "kalaban-backup.kalb"}" }
+    fun exportToUri(uri: Uri) = launchSafely {
+        if (!allowed(Permission.EXPORT_DATA)) return@launchSafely
+        runCatching { withContext(Dispatchers.IO) { repo.exportBackupToUri(uri) } }
+            .onSuccess {
+                markBackedUp()
+                app.audit.log(actor, AuditAction.DATA_EXPORT, AuditEntity.DATA, summary = uri.lastPathSegment ?: "backup")
+                _backupMessage.value = "OK: ${uri.lastPathSegment ?: "kalaban-backup.kalb"}"
+            }
             .onFailure { _backupMessage.value = "Export failed: ${it.message ?: it.javaClass.simpleName}" }
     }
 
-    fun importFrom(file: File) = viewModelScope.launch {
-        runCatching {
-            repo.readBackupFile(file)
-            ReminderNotifications.rescheduleAll(getApplication())
-        }
-            .onSuccess { _backupMessage.value = "Imported: ${file.name}" }
+    private suspend fun afterRestore(name: String) {
+        ReminderNotifications.rescheduleAll(getApplication())
+        app.audit.log(actor, AuditAction.DATA_RESTORE, AuditEntity.DATA, summary = name)
+        _pricingContext.value = null
+    }
+
+    fun importFrom(file: File) = launchSafely {
+        if (!allowed(Permission.IMPORT_DATA)) return@launchSafely
+        runCatching { withContext(Dispatchers.IO) { repo.readBackupFile(file) } }
+            .onSuccess {
+                afterRestore(file.name)
+                _backupMessage.value = "Imported: ${file.name}"
+            }
             .onFailure { _backupMessage.value = "Import failed: ${it.message ?: it.javaClass.simpleName}" }
     }
 
-    fun importFromUri(uri: android.net.Uri) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-        runCatching {
-            repo.importBackupFromUri(uri)
-            ReminderNotifications.rescheduleAll(getApplication())
-        }
-            .onSuccess { _backupMessage.value = "Imported: ${uri.lastPathSegment ?: "backup"}" }
+    fun importFromUri(uri: Uri) = launchSafely {
+        if (!allowed(Permission.IMPORT_DATA)) return@launchSafely
+        runCatching { withContext(Dispatchers.IO) { repo.importBackupFromUri(uri) } }
+            .onSuccess {
+                afterRestore(uri.lastPathSegment ?: "backup")
+                _backupMessage.value = "Imported: ${uri.lastPathSegment ?: "backup"}"
+            }
             .onFailure { _backupMessage.value = "Import failed: ${it.message ?: it.javaClass.simpleName}" }
     }
 
     fun observeLinesForSale(saleId: Long) = repo.observeLinesForSale(saleId)
     fun observePaymentsForSale(saleId: Long) = repo.observePaymentsForSale(saleId)
 
-    fun setPin(pin: String) = viewModelScope.launch { secure.setPin(pin) }
+    // ---- Authentication ----
 
-    fun unlockWithPin(pin: String, onResult: (Boolean) -> Unit) = viewModelScope.launch {
-        val ok = if (!secure.hasPin()) {
+    /** First run sets the owner PIN; afterwards the PIN may belong to the owner or a staff user. */
+    fun unlockWithPin(pin: String, onResult: (AuthResult) -> Unit) = viewModelScope.launch {
+        val result = if (!secure.hasPin()) {
             secure.setPin(pin)
-            true
+            app.users.authenticate(pin)
         } else {
-            secure.checkPin(pin)
+            app.users.authenticate(pin)
         }
-        if (ok) secure.setSessionUnlocked(true)
-        onResult(ok)
+        onResult(result)
     }
 
-    /** After biometric verification for forgotten PIN: replace PIN and unlock. */
+    /** After biometric verification for a forgotten PIN: replace the owner PIN and sign in as owner. */
     fun resetPinAfterBiometric(newPin: String, onDone: () -> Unit) = viewModelScope.launch {
         secure.setPin(newPin)
-        secure.setSessionUnlocked(true)
+        app.users.signInOwnerWithBiometric()
         onDone()
     }
 
-    fun unlockSession() = viewModelScope.launch { secure.setSessionUnlocked(true) }
-    fun lockSession() = viewModelScope.launch { secure.setSessionUnlocked(false) }
+    fun unlockWithBiometric() = viewModelScope.launch { app.users.signInOwnerWithBiometric() }
 
-    fun clearDollarHistory() = viewModelScope.launch { repo.clearDollarHistory() }
+    fun lockSession() = viewModelScope.launch { app.users.signOut() }
+
+    fun clearDollarHistory() = launchSafely {
+        if (!allowed(Permission.MANAGE_PRICES)) return@launchSafely
+        repo.clearDollarHistory()
+        app.audit.log(actor, AuditAction.HISTORY_CLEAR, AuditEntity.PRICE, summary = "dollar_rate_history")
+    }
 
     companion object {
-        fun factory(): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AppViewModel(KalabanApp.instance) as T
-            }
-        }
+        fun factory() = appViewModelFactory { AppViewModel(KalabanApp.instance) }
     }
 }

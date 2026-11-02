@@ -164,7 +164,10 @@ class RescheduleRemindersWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         return try {
-            ReminderNotifications.rescheduleAll(applicationContext)
+            if (KalabanApp.instance.config.current().notifyCreditReminders) {
+                ReminderNotifications.rescheduleAll(applicationContext)
+            }
+            ShopWorkers.rescheduleAll(applicationContext)
             Result.success()
         } catch (_: Exception) {
             Result.retry()

@@ -10,7 +10,10 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -82,6 +85,50 @@ private val DarkColorScheme = darkColorScheme(
     onErrorContainer = DarkOnErrorContainer,
 )
 
+/** Status roles Material 3 lacks; profit/loss and alerts use these instead of ad-hoc colors. */
+@Immutable
+data class SemanticColors(
+    val success: Color,
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+    val warning: Color,
+    val warningContainer: Color,
+    val onWarningContainer: Color,
+    val info: Color,
+    val infoContainer: Color,
+    val onInfoContainer: Color,
+)
+
+private val LightSemantic = SemanticColors(
+    success = Color(0xFF2E7D4F),
+    successContainer = Color(0xFFD7F0DF),
+    onSuccessContainer = Color(0xFF0F3B22),
+    warning = Color(0xFF8A5A00),
+    warningContainer = Color(0xFFFFE7B8),
+    onWarningContainer = Color(0xFF3D2700),
+    info = Color(0xFF3A5A78),
+    infoContainer = Color(0xFFDCE6F0),
+    onInfoContainer = Color(0xFF13283B),
+)
+
+private val DarkSemantic = SemanticColors(
+    success = Color(0xFF7BD39A),
+    successContainer = Color(0xFF1E4A30),
+    onSuccessContainer = Color(0xFFC9F2D6),
+    warning = Color(0xFFF2C26B),
+    warningContainer = Color(0xFF4A3810),
+    onWarningContainer = Color(0xFFFFE7B8),
+    info = Color(0xFFA7C3DD),
+    infoContainer = Color(0xFF24384B),
+    onInfoContainer = Color(0xFFDCE6F0),
+)
+
+val LocalSemanticColors = staticCompositionLocalOf { LightSemantic }
+
+val MaterialTheme.semantic: SemanticColors
+    @Composable @ReadOnlyComposable
+    get() = LocalSemanticColors.current
+
 private fun ContextWrapper.findActivity(): Activity? {
     var ctx: android.content.Context = this
     while (ctx is ContextWrapper) {
@@ -138,6 +185,7 @@ fun KalabanTheme(
             CompositionLocalProvider(
                 LocalContentColor provides colorScheme.onBackground,
                 LocalTextStyle provides Typography.bodyLarge.copy(color = Color.Unspecified),
+                LocalSemanticColors provides if (darkTheme) DarkSemantic else LightSemantic,
             ) {
                 content()
             }

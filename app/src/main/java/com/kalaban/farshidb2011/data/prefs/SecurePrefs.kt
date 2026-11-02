@@ -59,7 +59,16 @@ class SecurePrefs(private val context: Context) {
         _sessionUnlocked.value = unlocked
     }
 
+    /** Replaces the owner PIN only when [current] verifies. */
+    suspend fun changePin(current: String, new: String): Boolean {
+        if (!checkPin(current)) return false
+        setPin(new)
+        return true
+    }
+
     companion object {
+        fun newSalt(): String = randomSalt()
+
         private fun randomSalt(): String {
             val bytes = ByteArray(16)
             SecureRandom().nextBytes(bytes)

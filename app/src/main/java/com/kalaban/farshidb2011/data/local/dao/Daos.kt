@@ -53,32 +53,85 @@ interface CategoryDao {
 
 @Dao
 interface ItemDao {
+    /** Active products matching title, SKU, barcode, brand or tags (display panel and sales). */
     @Query(
         """
         SELECT * FROM items
-        WHERE (:query = '' OR title LIKE '%' || :query || '%' OR IFNULL(sku,'') LIKE '%' || :query || '%')
+        WHERE status = 'ACTIVE' AND (:query = ''
+            OR title LIKE '%' || :query || '%'
+            OR IFNULL(sku,'') LIKE '%' || :query || '%'
+            OR IFNULL(barcode,'') LIKE '%' || :query || '%'
+            OR IFNULL(brand,'') LIKE '%' || :query || '%'
+            OR IFNULL(tags,'') LIKE '%' || :query || '%')
         ORDER BY title
         """,
     )
     fun observeSearch(query: String): Flow<List<ItemEntity>>
 
+    /** Catalog view for product management; an empty [status] matches every status. */
+    @Query(
+        """
+        SELECT * FROM items
+        WHERE (:status = '' OR status = :status) AND (:query = ''
+            OR title LIKE '%' || :query || '%'
+            OR IFNULL(sku,'') LIKE '%' || :query || '%'
+            OR IFNULL(barcode,'') LIKE '%' || :query || '%'
+            OR IFNULL(brand,'') LIKE '%' || :query || '%'
+            OR IFNULL(supplier,'') LIKE '%' || :query || '%'
+            OR IFNULL(tags,'') LIKE '%' || :query || '%')
+        ORDER BY title
+        """,
+    )
+    fun observeCatalog(query: String, status: String): Flow<List<ItemEntity>>
+
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun getById(id: Long): ItemEntity?
 
-    @Query("SELECT * FROM items WHERE stockQty <= lowStockThreshold AND lowStockThreshold > 0")
+    @Query("SELECT * FROM items WHERE id = :id")
+    fun observeById(id: Long): Flow<ItemEntity?>
+
+    @Query("SELECT * FROM items WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<ItemEntity>
+
+    @Query("SELECT * FROM items WHERE barcode = :barcode LIMIT 1")
+    suspend fun findByBarcode(barcode: String): ItemEntity?
+
+    @Query("SELECT * FROM items WHERE sku = :sku")
+    suspend fun findBySku(sku: String): List<ItemEntity>
+
+    @Query("SELECT * FROM items WHERE status = 'ACTIVE' AND stockQty <= lowStockThreshold AND lowStockThreshold > 0")
     fun observeLowStock(): Flow<List<ItemEntity>>
 
     @Query("SELECT * FROM items")
     suspend fun getAll(): List<ItemEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(item: ItemEntity): Long
+    @Query("SELECT * FROM items")
+    fun observeAll(): Flow<List<ItemEntity>>
+
+    @Query("SELECT DISTINCT brand FROM items WHERE IFNULL(brand,'') != '' ORDER BY brand")
+    fun observeBrands(): Flow<List<String>>
+
+    @Query("SELECT DISTINCT supplier FROM items WHERE IFNULL(supplier,'') != '' ORDER BY supplier")
+    fun observeSuppliers(): Flow<List<String>>
+
+    /** Plain INSERT: REPLACE would delete referenced rows, which sale_lines' ON DELETE RESTRICT rejects. */
+    @Insert
+    suspend fun insert(item: ItemEntity): Long
 
     @Update
     suspend fun update(item: ItemEntity)
 
     @Query("UPDATE items SET sellPrice = :sellPrice, updatedAtEpochMs = :updatedAt WHERE id = :id")
     suspend fun updateSellPrice(id: Long, sellPrice: Double, updatedAt: Long)
+
+    @Query("UPDATE items SET status = :status, updatedAtEpochMs = :updatedAt WHERE id IN (:ids)")
+    suspend fun setStatus(ids: List<Long>, status: String, updatedAt: Long)
+
+    @Query("UPDATE items SET categoryId = :categoryId, updatedAtEpochMs = :updatedAt WHERE id IN (:ids)")
+    suspend fun setCategory(ids: List<Long>, categoryId: Long?, updatedAt: Long)
+
+    @Query("UPDATE items SET formulaId = NULL, pricingMode = 'AUTO' WHERE formulaId = :formulaId")
+    suspend fun detachFormula(formulaId: Long)
 
     @Query("DELETE FROM items WHERE id = :id")
     suspend fun delete(id: Long)
@@ -151,6 +204,9 @@ interface SaleDao {
 
     @Query("SELECT * FROM sales")
     suspend fun getAll(): List<SaleEntity>
+
+    @Query("SELECT * FROM sales WHERE createdAtEpochMs BETWEEN :fromEpochMs AND :toEpochMs ORDER BY createdAtEpochMs")
+    fun observeInRange(fromEpochMs: Long, toEpochMs: Long): Flow<List<SaleEntity>>
 }
 
 @Dao
@@ -166,6 +222,18 @@ interface SaleLineDao {
 
     @Query("SELECT * FROM sale_lines")
     suspend fun getAll(): List<SaleLineEntity>
+
+    @Query(
+        """
+        SELECT sale_lines.* FROM sale_lines
+        INNER JOIN sales ON sales.id = sale_lines.saleId
+        WHERE sales.createdAtEpochMs BETWEEN :fromEpochMs AND :toEpochMs
+        """,
+    )
+    suspend fun getInRange(fromEpochMs: Long, toEpochMs: Long): List<SaleLineEntity>
+
+    @Query("SELECT COUNT(*) FROM sale_lines WHERE itemId = :itemId")
+    suspend fun countForItem(itemId: Long): Int
 }
 
 @Dao

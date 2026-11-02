@@ -263,6 +263,8 @@ fun RetailTextField(
     singleLine: Boolean = true,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     numericLtr: Boolean = false,
+    isError: Boolean = false,
+    supportingText: String? = null,
 ) {
     val onSurface = retailReadableOnSurface()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -304,6 +306,8 @@ fun RetailTextField(
             keyboardOptions = keyboardOptions,
             singleLine = singleLine,
             maxLines = maxLines,
+            isError = isError,
+            supportingText = supportingText?.let { text -> { Text(text) } },
             shape = RetailFieldShape,
             colors = retailTextFieldColors(),
         )
@@ -384,14 +388,13 @@ fun RetailBottomTab(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-            .widthIn(min = 64.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = label,
+            contentDescription = null,
             tint = fg,
             modifier = Modifier.size(24.dp),
         )
@@ -401,6 +404,7 @@ fun RetailBottomTab(
             style = MaterialTheme.typography.labelMedium,
             color = fg,
             maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(4.dp))
         Box(

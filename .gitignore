@@ -23,3 +23,7 @@ Thumbs.db
 
 # Kotlin
 *.class
+.kotlin/
+
+# Python tooling caches
+__pycache__/

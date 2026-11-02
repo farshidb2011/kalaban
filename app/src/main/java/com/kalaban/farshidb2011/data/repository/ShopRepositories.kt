@@ -3,34 +3,59 @@ package com.kalaban.farshidb2011.data.repository
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
-import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.InstanceCreator
 import com.google.gson.annotations.SerializedName
 import com.kalaban.farshidb2011.BuildConfig
 import com.kalaban.farshidb2011.core.JalaliDate
 import com.kalaban.farshidb2011.core.Money
-import com.kalaban.farshidb2011.core.PricingEngine
 import com.kalaban.farshidb2011.data.backup.KalabanBackupArchive
 import com.kalaban.farshidb2011.data.local.KalabanDatabase
+import com.kalaban.farshidb2011.data.local.entity.AppConfigEntity
+import com.kalaban.farshidb2011.data.local.entity.AttributeDefinitionEntity
+import com.kalaban.farshidb2011.data.local.entity.AuditLogEntity
 import com.kalaban.farshidb2011.data.local.entity.CategoryEntity
+import com.kalaban.farshidb2011.data.local.entity.DiscountRuleEntity
 import com.kalaban.farshidb2011.data.local.entity.DollarRateHistoryEntity
+import com.kalaban.farshidb2011.data.local.entity.FormulaVersionEntity
+import com.kalaban.farshidb2011.data.local.entity.ItemAttributeValueEntity
 import com.kalaban.farshidb2011.data.local.entity.ItemEntity
 import com.kalaban.farshidb2011.data.local.entity.PaymentType
+import com.kalaban.farshidb2011.data.local.entity.PriceBatchEntity
+import com.kalaban.farshidb2011.data.local.entity.PriceHistoryEntity
+import com.kalaban.farshidb2011.data.local.entity.PricingFormulaEntity
+import com.kalaban.farshidb2011.data.local.entity.RoleEntity
 import com.kalaban.farshidb2011.data.local.entity.SaleEntity
 import com.kalaban.farshidb2011.data.local.entity.SaleLineEntity
 import com.kalaban.farshidb2011.data.local.entity.SalePaymentEntity
 import com.kalaban.farshidb2011.data.local.entity.SettingsEntity
 import com.kalaban.farshidb2011.data.local.entity.UnitEntity
+import com.kalaban.farshidb2011.data.local.entity.UserEntity
+import com.kalaban.farshidb2011.data.local.seedIfEmpty
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
 import java.nio.charset.StandardCharsets
 
+/** Bumped when the backup payload gains tables; absent in backups made before version 3. */
+const val BACKUP_SCHEMA_VERSION = 3
+
 class ShopRepository(
     private val db: KalabanDatabase,
     private val appContext: Context,
 ) {
-    private val gson = Gson()
+    // Instance creators keep Kotlin defaults for fields missing from older backups (e.g. dollarLinked = true).
+    private val gson = GsonBuilder()
+        .registerTypeAdapter(
+            ItemEntity::class.java,
+            InstanceCreator { ItemEntity(title = "", unitId = 0, purchasePrice = 0.0, purchaseDollarRate = 0.0, sellPrice = 0.0) },
+        )
+        .registerTypeAdapter(
+            SaleLineEntity::class.java,
+            InstanceCreator { SaleLineEntity(saleId = 0, itemId = 0, itemTitle = "", quantity = 0.0, unitPrice = 0.0, lineTotal = 0.0) },
+        )
+        .create()
     private val imageDir: File
         get() = File(appContext.filesDir, "item_images").also { it.mkdirs() }
 
@@ -66,76 +91,57 @@ class ShopRepository(
 
     suspend fun deleteCategory(id: Long) = db.categoryDao().delete(id)
 
-    suspend fun upsertItem(item: ItemEntity): Long {
-        val settings = db.settingsDao().get() ?: SettingsEntity()
-        val sell = if (item.sellPrice <= 0.0) {
-            PricingEngine.recalculateSellPrice(
-                purchasePrice = item.purchasePrice,
-                purchaseDollarRate = item.purchaseDollarRate,
-                newDollarRate = settings.dollarRate,
-                managerPercent = settings.managerPercent,
-            )
-        } else {
-            item.sellPrice
+    /** Result of saving settings; price-affecting changes are re-priced through a previewed batch, never silently. */
+    data class SettingsChange(
+        val previous: SettingsEntity?,
+        val current: SettingsEntity,
+    ) {
+        val pricesAffected: Boolean
+            get() = previous != null && (
+                previous.dollarRate != current.dollarRate || previous.managerPercent != current.managerPercent
+                )
+
+        fun diff(): String? = previous?.let { p ->
+            listOf(
+                "dollarRate" to (p.dollarRate to current.dollarRate),
+                "taxPercent" to (p.taxPercent to current.taxPercent),
+                "profitPercent" to (p.profitPercent to current.profitPercent),
+                "dollarChangePercent" to (p.dollarChangePercent to current.dollarChangePercent),
+                "managerPercent" to (p.managerPercent to current.managerPercent),
+                "installmentDiffPercent" to (p.installmentDiffPercent to current.installmentDiffPercent),
+                "currencyCode" to (p.currencyCode to current.currencyCode),
+                "languageTag" to (p.languageTag to current.languageTag),
+                "displayDarkMode" to (p.displayDarkMode to current.displayDarkMode),
+                "biometricUnlockEnabled" to (p.biometricUnlockEnabled to current.biometricUnlockEnabled),
+            ).filter { it.second.first != it.second.second }
+                .joinToString("; ") { (k, v) -> "$k: ${v.first} → ${v.second}" }
+                .ifEmpty { null }
         }
-        val normalized = item.copy(
-            purchasePrice = Money.round(item.purchasePrice),
-            sellPrice = Money.round(sell),
-            updatedAtEpochMs = System.currentTimeMillis(),
-        )
-        if (normalized.id == 0L) return db.itemDao().upsert(normalized)
-        // REPLACE deletes the row first, which sale_lines' ON DELETE RESTRICT rejects for sold items.
-        db.itemDao().update(normalized)
-        return normalized.id
     }
 
-    suspend fun getItem(id: Long): ItemEntity? = db.itemDao().getById(id)
-
-    suspend fun deleteItem(id: Long) = db.itemDao().delete(id)
-
-    suspend fun updateSettings(settings: SettingsEntity) {
+    suspend fun updateSettings(settings: SettingsEntity): SettingsChange = db.withTransaction {
         val previous = db.settingsDao().get()
         val normalized = settings.copy(
             id = 1,
             dollarRate = Money.round(settings.dollarRate),
         )
         db.settingsDao().upsert(normalized)
-        val dollarChanged = previous != null && previous.dollarRate != normalized.dollarRate
-        val managerChanged = previous != null && previous.managerPercent != normalized.managerPercent
-        if (dollarChanged) {
+        if (previous != null && previous.dollarRate != normalized.dollarRate) {
             db.dollarRateHistoryDao().insert(
                 DollarRateHistoryEntity(rate = normalized.dollarRate, note = "settings_update"),
             )
         }
-        if (dollarChanged || managerChanged) {
-            recalculateAllPrices(normalized)
-        }
+        SettingsChange(previous, normalized)
     }
 
-    suspend fun recalculateAllPrices(settings: SettingsEntity? = null) {
-        val effective = settings ?: db.settingsDao().get() ?: SettingsEntity()
-        db.itemDao().getAll().forEach { item ->
-            val newSell = PricingEngine.recalculateSellPrice(
-                purchasePrice = item.purchasePrice,
-                purchaseDollarRate = item.purchaseDollarRate,
-                newDollarRate = effective.dollarRate,
-                managerPercent = effective.managerPercent,
-            )
-            db.itemDao().updateSellPrice(item.id, Money.round(newSell), System.currentTimeMillis())
-        }
-    }
-
-    suspend fun applyBatchPriceFactor(factor: Double) {
-        db.itemDao().getAll().forEach { item ->
-            db.itemDao().updateSellPrice(
-                id = item.id,
-                sellPrice = Money.round(item.sellPrice * factor),
-                updatedAt = System.currentTimeMillis(),
-            )
-        }
-    }
-
-    data class CartLine(val item: ItemEntity, val quantity: Double, val unitPrice: Double)
+    data class CartLine(
+        val item: ItemEntity,
+        val quantity: Double,
+        val unitPrice: Double,
+        val unitCost: Double? = null,
+        val taxPerUnit: Double = 0.0,
+        val discountPerUnit: Double = 0.0,
+    )
 
     suspend fun recordSale(
         buyerName: String,
@@ -144,6 +150,7 @@ class ShopRepository(
         dueAtEpochMs: Long? = null,
         jalaliDate: String = JalaliDate.today().format(),
         createdAtEpochMs: Long = System.currentTimeMillis(),
+        createdBy: String? = null,
     ): Long = db.withTransaction {
         val normalizedLines = lines.map {
             it.copy(unitPrice = Money.round(it.unitPrice))
@@ -159,6 +166,7 @@ class ShopRepository(
                 dueAtEpochMs = dueAtEpochMs,
                 totalAmount = total,
                 openBalance = open,
+                createdBy = createdBy,
             ),
         )
         db.saleLineDao().insertAll(
@@ -171,6 +179,9 @@ class ShopRepository(
                     quantity = it.quantity,
                     unitPrice = it.unitPrice,
                     lineTotal = lineTotal,
+                    unitCost = it.unitCost?.let(Money::round),
+                    taxAmount = Money.round(it.quantity * it.taxPerUnit),
+                    discountAmount = Money.round(it.quantity * it.discountPerUnit),
                 )
             },
         )
@@ -305,8 +316,12 @@ class ShopRepository(
      * Sold lines in [range], aggregated by item, grouped under each category.
      * Category comes from the current item record (or "uncategorized" if missing).
      */
-    suspend fun detailedSalesReport(range: ReportRange): DetailedSalesReport {
-        val sales = salesReport(range)
+    suspend fun detailedSalesReport(range: ReportRange): DetailedSalesReport = groupSales(salesReport(range))
+
+    suspend fun detailedSalesReport(fromEpochMs: Long, toEpochMs: Long): DetailedSalesReport =
+        groupSales(db.saleDao().getInRange(fromEpochMs, toEpochMs))
+
+    private suspend fun groupSales(sales: List<SaleEntity>): DetailedSalesReport {
         if (sales.isEmpty()) return DetailedSalesReport()
         val saleIds = sales.map { it.id }.toSet()
         val lines = db.saleLineDao().getAll().filter { it.saleId in saleIds }
@@ -363,6 +378,7 @@ class ShopRepository(
 
     /** Metadata-only payload stored as UTF-8 JSON inside the `.kalb` binary container. */
     data class BackupPayload(
+        @SerializedName("schemaVersion") val schemaVersion: Int? = null,
         @SerializedName("settings") val settings: SettingsEntity? = null,
         @SerializedName("units") val units: List<UnitEntity>? = null,
         @SerializedName("categories") val categories: List<CategoryEntity>? = null,
@@ -371,6 +387,17 @@ class ShopRepository(
         @SerializedName("sales") val sales: List<SaleEntity>? = null,
         @SerializedName("saleLines") val saleLines: List<SaleLineEntity>? = null,
         @SerializedName("salePayments") val salePayments: List<SalePaymentEntity>? = null,
+        @SerializedName("formulas") val formulas: List<PricingFormulaEntity>? = null,
+        @SerializedName("formulaVersions") val formulaVersions: List<FormulaVersionEntity>? = null,
+        @SerializedName("priceBatches") val priceBatches: List<PriceBatchEntity>? = null,
+        @SerializedName("priceHistory") val priceHistory: List<PriceHistoryEntity>? = null,
+        @SerializedName("discountRules") val discountRules: List<DiscountRuleEntity>? = null,
+        @SerializedName("attributeDefinitions") val attributeDefinitions: List<AttributeDefinitionEntity>? = null,
+        @SerializedName("attributeValues") val attributeValues: List<ItemAttributeValueEntity>? = null,
+        @SerializedName("auditLog") val auditLog: List<AuditLogEntity>? = null,
+        @SerializedName("config") val config: List<AppConfigEntity>? = null,
+        @SerializedName("roles") val roles: List<RoleEntity>? = null,
+        @SerializedName("users") val users: List<UserEntity>? = null,
     )
 
     suspend fun writeBackupFile(file: File) {
@@ -379,6 +406,7 @@ class ShopRepository(
         // Strip non-portable local URI paths; image bytes live in the binary section.
         val portableItems = items.map { it.copy(imageUri = null) }
         val payload = BackupPayload(
+            schemaVersion = BACKUP_SCHEMA_VERSION,
             settings = db.settingsDao().get(),
             units = db.unitDao().getAll(),
             categories = db.categoryDao().getAll(),
@@ -387,6 +415,17 @@ class ShopRepository(
             sales = db.saleDao().getAll(),
             saleLines = db.saleLineDao().getAll(),
             salePayments = db.salePaymentDao().getAll(),
+            formulas = db.formulaDao().getAll(),
+            formulaVersions = db.formulaDao().getAllVersions(),
+            priceBatches = db.priceBatchDao().getAll(),
+            priceHistory = db.priceHistoryDao().getAll(),
+            discountRules = db.discountRuleDao().getAll(),
+            attributeDefinitions = db.attributeDao().getDefinitions(),
+            attributeValues = db.attributeDao().allValues(),
+            auditLog = db.auditDao().getAll(),
+            config = db.configDao().getAll(),
+            roles = db.userDao().getRoles(),
+            users = db.userDao().getUsers(),
         )
         val archiveBytes = KalabanBackupArchive.pack(
             metaJson = gson.toJson(payload),
@@ -449,15 +488,29 @@ class ShopRepository(
             units.forEach { db.unitDao().insert(it) }
             categories.forEach { db.categoryDao().insert(it) }
             items.forEach { item ->
-                db.itemDao().upsert(item.copy(imageUri = restoredUris[item.id]))
+                db.itemDao().insert(item.copy(imageUri = restoredUris[item.id]))
             }
             dollarHistory.forEach { db.dollarRateHistoryDao().insert(it.copy(id = 0)) }
+            // Keep ids that other rows reference (formulas, batches, attributes, roles); insert parents first.
+            payload.formulas.orEmpty().forEach { db.formulaDao().insert(it) }
+            payload.formulaVersions.orEmpty().forEach { db.formulaDao().insertVersion(it.copy(id = 0)) }
+            payload.priceBatches.orEmpty().forEach { db.priceBatchDao().insert(it) }
+            db.priceHistoryDao().insertAll(payload.priceHistory.orEmpty().map { it.copy(id = 0) })
+            payload.discountRules.orEmpty().forEach { db.discountRuleDao().insert(it) }
+            payload.attributeDefinitions.orEmpty().forEach { db.attributeDao().insertDefinition(it) }
+            db.attributeDao().upsertValues(payload.attributeValues.orEmpty())
+            db.auditDao().insertAll(payload.auditLog.orEmpty().map { it.copy(id = 0) })
+            db.configDao().upsertAll(payload.config.orEmpty())
+            payload.roles.orEmpty().forEach { db.userDao().insertRole(it) }
+            payload.users.orEmpty().forEach { db.userDao().insertUser(it) }
             sales.forEach { db.saleDao().upsert(it) }
             if (saleLines.isNotEmpty()) {
                 db.saleLineDao().insertAll(saleLines.map { it.copy(id = 0) })
             }
             salePayments.forEach { db.salePaymentDao().insert(it.copy(id = 0)) }
         }
+        // Backups made before roles existed restore with none; reseed built-in defaults.
+        db.seedIfEmpty()
     }
 
     private fun collectRawImage(item: ItemEntity): KalabanBackupArchive.ImageEntry? {

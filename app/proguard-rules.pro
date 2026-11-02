@@ -5,6 +5,9 @@
 
 -keep class com.kalaban.farshidb2011.data.local.entity.** { *; }
 -keep class com.kalaban.farshidb2011.data.repository.ShopRepository$BackupPayload { *; }
+# Gson-reflected payloads: scheduled price batch requests and the in-app help documents.
+-keep class com.kalaban.farshidb2011.data.repository.BulkRequestDto { *; }
+-keep class com.kalaban.farshidb2011.data.help.** { *; }
 -keepattributes Signature
 -keepclassmembers class * {
   @com.google.gson.annotations.SerializedName <fields>;
