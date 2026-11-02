@@ -81,6 +81,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.kalaban.farshidb2011.R
+import com.kalaban.farshidb2011.core.Money
+import com.kalaban.farshidb2011.core.Numbers
 import com.kalaban.farshidb2011.ui.theme.VazirFontFamily
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -278,12 +280,20 @@ fun RetailTextField(
     singleLine: Boolean = true,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     numericLtr: Boolean = false,
+    /** When true (and settings grouping is on), show thousand separators while typing. */
+    groupThousands: Boolean = false,
     isError: Boolean = false,
     supportingText: String? = null,
 ) {
     val onSurface = retailReadableOnSurface()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
+    val groupingTransform = rememberDecimalGroupingTransformation(enabled = groupThousands && Money.grouping)
+    val effectiveTransform = if (groupThousands && Money.grouping && visualTransformation === VisualTransformation.None) {
+        groupingTransform
+    } else {
+        visualTransformation
+    }
     val fieldTextStyle = if (numericLtr) {
         TextStyle(
             fontFamily = VazirFontFamily,
@@ -297,7 +307,9 @@ fun RetailTextField(
     CompositionLocalProvider(LocalContentColor provides onSurface) {
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { incoming ->
+                onValueChange(if (groupThousands) Numbers.sanitizeDecimalInput(incoming) else incoming)
+            },
             modifier = modifier
                 .fillMaxWidth()
                 .bringIntoViewRequester(bringIntoViewRequester)
@@ -317,7 +329,7 @@ fun RetailTextField(
             placeholder = placeholder,
             leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
-            visualTransformation = visualTransformation,
+            visualTransformation = effectiveTransform,
             keyboardOptions = keyboardOptions,
             singleLine = singleLine,
             maxLines = maxLines,

@@ -1451,6 +1451,7 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 numericLtr = true,
+                                groupThousands = true,
                             )
                             RetailTextField(
                                 value = unitPriceText,
@@ -1458,6 +1459,7 @@ fun NewSaleScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 label = { Text(stringResource(R.string.unit_price_editable)) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 numericLtr = true,
+                                groupThousands = true,
                                 readOnly = !canEditPrice,
                                 supportingText = if (!canEditPrice) stringResource(R.string.price_edit_not_allowed) else null,
                             )
@@ -1730,6 +1732,7 @@ fun CreditsScreen(vm: AppViewModel, onBack: () -> Unit) {
                 label = { Text(stringResource(R.string.partial_payment)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 numericLtr = true,
+                groupThousands = true,
             )
             RetailPrimaryButton(
                 onClick = {

@@ -760,6 +760,7 @@
     <string name="template_saved">Template Saved</string>
     <string name="this_formula">This Formula</string>
     <string name="thousands_separator">Thousands Separator</string>
+    <string name="thousands_separator_help">Show commas in prices and amounts while typing and in reports</string>
     <string name="tier_discount_applied">%1$s%% tier discount (list %2$s)</string>
     <string name="top_products">Top products</string>
     <string name="total_difference">Total Difference</string>

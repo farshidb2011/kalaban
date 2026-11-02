@@ -422,7 +422,14 @@ fun GeneralSettingsScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack: 
                         )
                         Text(stringResource(R.string.decimal_places_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.thousands_separator), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.thousands_separator), color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    stringResource(R.string.thousands_separator_help),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             Switch(checked = config.grouping, onCheckedChange = { v -> adminVm.updateConfig { it.copy(grouping = v) } }, colors = retailSwitchColors())
                         }
                         KeyValueRow(stringResource(R.string.format_example), Money.format(java.math.BigDecimal("1234567.891")))

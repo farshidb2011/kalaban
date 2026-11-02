@@ -34,6 +34,19 @@ class NumbersAndCsvTest {
     }
 
     @Test
+    fun sanitizesAndGroupsDecimalInput() {
+        assertEquals("1250000.5", Numbers.sanitizeDecimalInput("1,250,000.5"))
+        assertEquals("1250000.5", Numbers.sanitizeDecimalInput("۱٬۲۵۰٬۰۰۰٫۵"))
+        assertEquals("1250000.", Numbers.sanitizeDecimalInput("1250000."))
+        assertEquals("-12.5", Numbers.sanitizeDecimalInput("-12.5"))
+        assertEquals("1,250,000.5", Numbers.groupThousands("1250000.5"))
+        assertEquals("-1,250,000", Numbers.groupThousands("-1250000"))
+        assertEquals("0.5", Numbers.groupThousands("0.5"))
+        assertEquals("1,250,000.", Numbers.groupThousands("1250000."))
+        assertEquals("", Numbers.groupThousands(""))
+    }
+
+    @Test
     fun csvParsesQuotesNewlinesAndBom() {
         val text = Csv.BOM + "title,price,note\r\n\"Silk, red\",1200,\"says \"\"hi\"\"\"\r\nWool,900,\"line1\nline2\"\r\n\r\n"
         val rows = Csv.parse(text)

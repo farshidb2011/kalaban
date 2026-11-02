@@ -760,6 +760,7 @@
     <string name="template_saved">قالب ذخیره شد</string>
     <string name="this_formula">این فرمول</string>
     <string name="thousands_separator">جداکنندهٔ هزارگان</string>
+    <string name="thousands_separator_help">نمایش ویرگول در ورودی قیمت‌ها و مبالغ هنگام تایپ و در گزارش‌ها</string>
     <string name="tier_discount_applied">تخفیف پلکانی %1$s%% (فهرست %2$s)</string>
     <string name="top_products">پرفروش‌ها</string>
     <string name="total_difference">جمع اختلاف</string>

@@ -394,6 +394,7 @@ fun NumberField(
     error: Boolean = false,
     supporting: String? = null,
     enabled: Boolean = true,
+    groupThousands: Boolean = true,
 ) {
     RetailTextField(
         value = value,
@@ -402,6 +403,7 @@ fun NumberField(
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         numericLtr = true,
+        groupThousands = groupThousands,
         isError = error,
         supportingText = supporting,
         enabled = enabled,
