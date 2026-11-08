@@ -17,6 +17,12 @@
     <string name="title">عنوان</string>
     <string name="purchase_price">قیمت خرید</string>
     <string name="sell_price">قیمت فروش</string>
+    <string name="sell_price_on_create_help">قیمت فروش فعلی کالا را وارد کنید. قیمت خرید ثابت می‌ماند؛ با وابسته به دلار فقط قیمت فروش عوض می‌شود.</string>
+    <string name="sell_price_manual_hint">قیمت فروش را در بخش هزینهٔ بالا وارد کرده‌اید.</string>
+    <string name="save_rate_only">فقط ذخیرهٔ نرخ (بدون تغییر قیمت کالاها)</string>
+    <string name="save_and_review_prices">ذخیره و بازبینی قیمت کالاها</string>
+    <string name="dollar_save_help">می‌توانید اول نرخ دلار را بدون دست زدن به کالاها ذخیره کنید. وقتی آماده بودید، ذخیره و بازبینی را بزنید تا قیمت فروش کالاهای وابسته به‌روز شود.</string>
+    <string name="dollar_rate_saved_only">نرخ ذخیره شد. قیمت کالاها تغییر نکرد.</string>
     <string name="stock">موجودی</string>
     <string name="sku">کد / بارکد</string>
     <string name="dollar_rate">نرخ دلار</string>
@@ -79,7 +85,7 @@
     <string name="pin_mismatch">پین‌ها یکسان نیستند</string>
     <string name="open_admin">ادمین</string>
     <string name="back_to_display">ویترین</string>
-    <string name="help_dollar_rate">نرخ روز دلار برای محاسبهٔ مجدد قیمت فروش از روی قیمت خرید.</string>
+    <string name="help_dollar_rate">نرخ روز دلار. ذخیرهٔ تنها نرخ، قیمت کالاها را عوض نمی‌کند؛ برای به‌روزرسانی قیمت فروش کالاهای وابسته از بازبینی/محاسبهٔ مجدد استفاده کنید.</string>
     <string name="help_tax_percent">درصد مالیات که روی قیمت واحد فروش اضافه می‌شود.</string>
     <string name="help_profit_percent">درصد سود فروشگاه در محاسبهٔ قیمت واحد فروش.</string>
     <string name="help_manager_percent">سهم مدیر در محاسبهٔ قیمت فروش پایه از خرید × نسبت دلار.</string>
@@ -354,7 +360,7 @@
     <string name="display_show_stock">نمایش موجودی</string>
     <string name="dollar_history_sub">نرخ‌های قبلی ارز</string>
     <string name="dollar_linked">وابسته به دلار</string>
-    <string name="dollar_linked_help">با تغییر نرخ دلار دوباره محاسبه شود</string>
+    <string name="dollar_linked_help">با تغییر نرخ دلار، قیمت فروش این کالا به‌روز شود (قیمت خرید همان مقدار واردشده می‌ماند)</string>
     <string name="dollar_ratio">نسبت دلار</string>
     <string name="download_template">دانلود قالب</string>
     <string name="dup_create">همیشه جدید بساز</string>
@@ -651,10 +657,10 @@
     <string name="range_this_month">این ماه</string>
     <string name="range_today">امروز</string>
     <string name="rates_and_percentages">نرخ‌ها و درصدها</string>
-    <string name="recalc_prompt_banner">نرخ دلار یا درصد مدیر عوض شد. قبل از اعمال، محاسبهٔ مجدد را بازبینی کنید.</string>
-    <string name="recalc_prompt_setting">پیشنهاد بازبینی بعد از تغییر دلار</string>
-    <string name="recalc_prompt_text">ببینید قیمت‌های وابسته چگونه عوض می‌شوند، سپس به‌صورت یک دستهٔ قابل‌بازگردانی اعمال کنید.</string>
-    <string name="recalc_prompt_title">بازبینی محاسبهٔ مجدد</string>
+    <string name="recalc_prompt_banner">نرخ دلار یا درصد مدیر عوض شد. قبل از اعمال، محاسبهٔ مجدد قیمت فروش را بازبینی کنید.</string>
+    <string name="recalc_prompt_setting">بعد از ذخیرهٔ نرخ دلار، پیشنهاد بازبینی قیمت‌ها</string>
+    <string name="recalc_prompt_text">نرخ از قبل ذخیره شده. ببینید قیمت فروش کالاهای وابسته چگونه عوض می‌شود، سپس به‌صورت یک دستهٔ قابل‌بازگردانی اعمال کنید. قیمت خرید ثابت می‌ماند.</string>
+    <string name="recalc_prompt_title">به‌روزرسانی قیمت فروش کالاها؟</string>
     <string name="recalculate_hint">قیمت‌های وابسته به دلار را از نو حساب کنید</string>
     <string name="recent_price_changes">آخرین تغییرات قیمت</string>
     <string name="reminders_sub">سررسیدهای نزدیک نسیه</string>

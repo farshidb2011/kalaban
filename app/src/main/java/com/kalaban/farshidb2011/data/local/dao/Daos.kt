@@ -124,6 +124,17 @@ interface ItemDao {
     @Query("UPDATE items SET sellPrice = :sellPrice, updatedAtEpochMs = :updatedAt WHERE id = :id")
     suspend fun updateSellPrice(id: Long, sellPrice: Double, updatedAt: Long)
 
+    @Query(
+        "UPDATE items SET sellPrice = :sellPrice, purchaseDollarRate = :purchaseDollarRate, " +
+            "updatedAtEpochMs = :updatedAt WHERE id = :id",
+    )
+    suspend fun updateSellPriceAndPurchaseRate(
+        id: Long,
+        sellPrice: Double,
+        purchaseDollarRate: Double,
+        updatedAt: Long,
+    )
+
     @Query("UPDATE items SET status = :status, updatedAtEpochMs = :updatedAt WHERE id IN (:ids)")
     suspend fun setStatus(ids: List<Long>, status: String, updatedAt: Long)
 

@@ -69,7 +69,8 @@ data class ProductEditorState(
     val packaging: String = "",
     val other: String = "",
     val dollarLinked: Boolean = true,
-    val pricingMode: String = PricingModes.AUTO,
+    /** New products default to manual sell price entered next to purchase cost. */
+    val pricingMode: String = PricingModes.MANUAL,
     val pricingValue: String = "",
     val formulaId: Long? = null,
     val manualPrice: String = "",

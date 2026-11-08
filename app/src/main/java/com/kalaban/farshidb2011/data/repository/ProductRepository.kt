@@ -147,9 +147,19 @@ class ProductRepository(
         val settings = db.settingsDao().get() ?: SettingsEntity()
         val pieces = d.piecesPerUnit
         val perPiece = Money.round(d.packPurchasePrice.divide(pieces, Money.MC))
-        val rate = existing?.let {
-            PricingEngine.purchaseRateAfterEdit(it.purchasePrice, it.purchaseDollarRate, perPiece.toDouble(), settings.dollarRate)
-        } ?: settings.dollarRate
+        // MANUAL sell is an absolute shelf price: re-anchor purchaseDollarRate to today's rate so
+        // dollar-linked recalculation scales from this save, without rewriting purchasePrice.
+        val rate = when {
+            d.pricingMode == PricingModes.MANUAL -> settings.dollarRate
+            else -> existing?.let {
+                PricingEngine.purchaseRateAfterEdit(
+                    it.purchasePrice,
+                    it.purchaseDollarRate,
+                    perPiece.toDouble(),
+                    settings.dollarRate,
+                )
+            } ?: settings.dollarRate
+        }
         val now = System.currentTimeMillis()
         val draftItem = ItemEntity(
             id = d.id,

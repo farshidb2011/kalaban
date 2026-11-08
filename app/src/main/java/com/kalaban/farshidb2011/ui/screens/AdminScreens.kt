@@ -267,23 +267,37 @@ fun PricingRulesScreen(appVm: AppViewModel, adminVm: AdminViewModel, onBack: () 
                         RuleRow(stringResource(R.string.tax_percent), stringResource(R.string.help_tax_percent), tax) { dirty = true; tax = it }
                         RuleRow(stringResource(R.string.installment_diff_percent), stringResource(R.string.help_installment_diff_percent), installment) { dirty = true; installment = it }
                         if (invalid) Text(stringResource(R.string.error_negative), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            stringResource(R.string.dollar_save_help),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                        fun rulesCopy(): SettingsEntity {
+                            fun v(t: String) = Numbers.parseDecimal(t)?.toDouble() ?: 0.0
+                            return s.copy(
+                                dollarRate = Numbers.parseDecimal(dollar)?.toDouble() ?: s.dollarRate,
+                                taxPercent = v(tax),
+                                profitPercent = v(profit),
+                                managerPercent = v(manager),
+                                dollarChangePercent = v(dollarChange),
+                                installmentDiffPercent = v(installment),
+                            )
+                        }
                         RetailPrimaryButton(
                             onClick = {
-                                fun v(t: String) = Numbers.parseDecimal(t)?.toDouble() ?: 0.0
-                                appVm.savePricingRules(
-                                    s.copy(
-                                        dollarRate = Numbers.parseDecimal(dollar)?.toDouble() ?: s.dollarRate,
-                                        taxPercent = v(tax),
-                                        profitPercent = v(profit),
-                                        managerPercent = v(manager),
-                                        dollarChangePercent = v(dollarChange),
-                                        installmentDiffPercent = v(installment),
-                                    ),
-                                ) { dirty = false }
+                                appVm.savePricingRules(rulesCopy(), offerRecalc = false) { dirty = false }
                             },
                             enabled = !invalid && !dollarInvalid,
                             modifier = Modifier.fillMaxWidth().padding(top = Spacing.s),
-                        ) { Text(stringResource(R.string.save)) }
+                        ) { Text(stringResource(R.string.save_rate_only)) }
+                        RetailOutlinedButton(
+                            onClick = {
+                                appVm.savePricingRules(rulesCopy(), offerRecalc = true) { dirty = false }
+                            },
+                            enabled = !invalid && !dollarInvalid,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.save_and_review_prices)) }
                     }
                 }
             }

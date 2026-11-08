@@ -14,6 +14,7 @@ import com.kalaban.farshidb2011.core.pricing.PriceAdjustment
 import com.kalaban.farshidb2011.core.pricing.PriceCalculator
 import com.kalaban.farshidb2011.core.pricing.PriceResult
 import com.kalaban.farshidb2011.core.pricing.PriceRounding
+import com.kalaban.farshidb2011.core.pricing.PricingModes
 import com.kalaban.farshidb2011.core.pricing.PricingPolicy
 import com.kalaban.farshidb2011.core.pricing.PricingWarning
 import com.kalaban.farshidb2011.core.pricing.ProductCostInput
@@ -462,6 +463,7 @@ class PricingRepository(
             PriceBatchEntity(source = source, title = title, note = note, actor = actor.name, createdAtEpochMs = now),
         )
         val scale = Money.scale
+        val currentRate = Money.round(loadContext().policy.dollarRate).toDouble()
         val current = itemsById(preview.rows.map { it.itemId })
         val conflicts = ArrayList<String>()
         val history = ArrayList<PriceHistoryEntity>()
@@ -471,7 +473,12 @@ class PricingRepository(
                 conflicts += row.title
                 continue
             }
-            db.itemDao().updateSellPrice(item.id, row.newPrice.toDouble(), now)
+            // MANUAL + dollar-linked: re-anchor rate after scaling sell so the next recalc does not compound.
+            if (item.pricingMode == PricingModes.MANUAL && item.dollarLinked) {
+                db.itemDao().updateSellPriceAndPurchaseRate(item.id, row.newPrice.toDouble(), currentRate, now)
+            } else {
+                db.itemDao().updateSellPrice(item.id, row.newPrice.toDouble(), now)
+            }
             history += PriceHistoryEntity(
                 itemId = item.id,
                 batchId = batchId,

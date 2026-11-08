@@ -17,6 +17,12 @@
     <string name="title">Title</string>
     <string name="purchase_price">Purchase price</string>
     <string name="sell_price">Sell price</string>
+    <string name="sell_price_on_create_help">Enter the current shelf price. Purchase cost stays fixed; dollar-linked recalculation updates sell price only.</string>
+    <string name="sell_price_manual_hint">Sell price is set in the cost section above.</string>
+    <string name="save_rate_only">Save rate only (no product price change)</string>
+    <string name="save_and_review_prices">Save and review product prices</string>
+    <string name="dollar_save_help">Change the dollar rate first without touching products. When ready, save and review to update sell prices of dollar-linked items.</string>
+    <string name="dollar_rate_saved_only">Rate saved. Product prices were not changed.</string>
     <string name="stock">Stock</string>
     <string name="sku">SKU / Barcode</string>
     <string name="dollar_rate">Dollar rate</string>
@@ -79,7 +85,7 @@
     <string name="pin_mismatch">PINs do not match</string>
     <string name="open_admin">Admin</string>
     <string name="back_to_display">Display</string>
-    <string name="help_dollar_rate">Current USD exchange rate used when recalculating sell prices from purchase cost.</string>
+    <string name="help_dollar_rate">Current USD rate. Saving the rate alone does not change products; use review/recalculate to update sell prices of linked items.</string>
     <string name="help_tax_percent">Tax percentage added on top of the sale unit price.</string>
     <string name="help_profit_percent">Shop profit percentage applied when computing the sale unit price.</string>
     <string name="help_manager_percent">Manager share used when recalculating base sell price from purchase × dollar ratio.</string>
@@ -354,7 +360,7 @@
     <string name="display_show_stock">Show stock quantity</string>
     <string name="dollar_history_sub">Past exchange rates</string>
     <string name="dollar_linked">Linked to dollar</string>
-    <string name="dollar_linked_help">Recalculate when exchange rate changes</string>
+    <string name="dollar_linked_help">When the dollar rate changes, update this product\'s sell price (purchase cost stays as entered)</string>
     <string name="dollar_ratio">Dollar ratio</string>
     <string name="download_template">Download template</string>
     <string name="dup_create">Always create new</string>
@@ -651,10 +657,10 @@
     <string name="range_this_month">Range This Month</string>
     <string name="range_today">Range Today</string>
     <string name="rates_and_percentages">Rates And Percentages</string>
-    <string name="recalc_prompt_banner">Dollar or manager settings changed. Review recalculation before applying.</string>
-    <string name="recalc_prompt_setting">Recalc Prompt Setting</string>
-    <string name="recalc_prompt_text">Preview how linked prices would change, then apply as one reversible batch.</string>
-    <string name="recalc_prompt_title">Recalc Prompt Title</string>
+    <string name="recalc_prompt_banner">Dollar or manager settings changed. Review sell-price recalculation before applying.</string>
+    <string name="recalc_prompt_setting">Ask to review prices after saving a new dollar rate</string>
+    <string name="recalc_prompt_text">Rate is already saved. Preview how sell prices of dollar-linked products would change, then apply as one reversible batch. Purchase costs stay unchanged.</string>
+    <string name="recalc_prompt_title">Update product sell prices?</string>
     <string name="recalculate_hint">Recalculate Hint</string>
     <string name="recent_price_changes">Recent Price Changes</string>
     <string name="reminders_sub">Reminders</string>

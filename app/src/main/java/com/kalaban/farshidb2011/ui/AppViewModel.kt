@@ -186,11 +186,22 @@ class AppViewModel(application: Application) : GuardedViewModel(application) {
         _pricingContext.value = null
     }
 
-    /** Pricing rules (dollar rate, percentages) — require price management rights. */
-    fun savePricingRules(s: SettingsEntity, onSaved: () -> Unit = {}) = launchSafely {
+    /**
+     * Pricing rules (dollar rate, percentages) — require price management rights.
+     * @param offerRecalc when false, only stores the new rate/percents; product prices stay unchanged
+     * until the user runs recalculation explicitly.
+     */
+    fun savePricingRules(s: SettingsEntity, offerRecalc: Boolean = true, onSaved: () -> Unit = {}) = launchSafely {
         if (!allowed(Permission.MANAGE_PRICES)) return@launchSafely
-        persistSettings(s)
-        UiMessages.post(R.string.saved_ok)
+        val normalized = s.copy(id = 1, languageTag = s.languageTag.ifBlank { "fa" })
+        val change = repo.updateSettings(normalized)
+        change.diff()?.let { app.audit.log(actor, AuditAction.SETTINGS_UPDATE, AuditEntity.SETTINGS, 1, "settings", it) }
+        KalabanApp.instance.applyLanguage(normalized.languageTag)
+        if (offerRecalc && change.pricesAffected && app.config.current().recalcPrompt) {
+            _pendingRecalc.value = true
+        }
+        _pricingContext.value = null
+        UiMessages.post(if (offerRecalc) R.string.saved_ok else R.string.dollar_rate_saved_only)
         onSaved()
     }
 

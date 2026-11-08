@@ -259,7 +259,9 @@ object PriceCalculator {
         val raw: BigDecimal = when (input.mode) {
             PricingModes.MANUAL -> {
                 method = PriceMethod.MANUAL
-                input.currentPrice
+                // Shelf price is anchored at purchaseRate; dollar-linked items scale sell (not purchase).
+                val base = input.currentPrice.max(ZERO)
+                if (input.cost.dollarLinked && cost.rateValid) base.multiply(cost.ratio, Money.MC) else base
             }
             PricingModes.MARKUP -> if (value != null && value.signum() >= 0) {
                 method = PriceMethod.MARKUP

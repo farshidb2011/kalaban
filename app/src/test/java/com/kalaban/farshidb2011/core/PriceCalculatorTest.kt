@@ -133,10 +133,34 @@ class PriceCalculatorTest {
         val high = PriceCalculator.calculate(product(maxPrice = "150"), policy)
         assertDec("150", high.finalPrice)
         assertEquals(PriceBound.MAX, high.bound)
-        val manual = PriceCalculator.calculate(product(mode = PricingModes.MANUAL, current = "99.999", minPrice = "150"), policy)
-        assertDec("100.00", manual.finalPrice)
+        val manual = PriceCalculator.calculate(
+            product(mode = PricingModes.MANUAL, current = "50", minPrice = "150", purchaseRate = "20"),
+            policy,
+        )
+        assertDec("50.00", manual.finalPrice)
         assertTrue(PricingWarning.OUTSIDE_BOUNDS in manual.warnings)
         assertTrue(PricingWarning.BELOW_COST in manual.warnings)
+    }
+
+    @Test
+    fun manualDollarLinkedScalesSellNotPurchase() {
+        // purchase 100 at rate 10; current rate 20 → sell 80 scales to 160; purchase stays 100 in cost breakdown
+        val input = product(
+            purchase = "100",
+            purchaseRate = "10",
+            mode = PricingModes.MANUAL,
+            current = "80",
+            dollarLinked = true,
+        )
+        val p = PricingPolicy(dollarRate = d("20"))
+        val r = PriceCalculator.calculate(input, p)
+        assertEquals(PriceMethod.MANUAL, r.method)
+        assertDec("100", r.cost.purchasePrice)
+        assertDec("200", r.cost.adjustedPurchase)
+        assertDec("160.00", r.finalPrice)
+        val unlinked = PriceCalculator.calculate(input.copy(cost = input.cost.copy(dollarLinked = false)), p)
+        assertDec("80.00", unlinked.finalPrice)
+        assertDec("100", unlinked.cost.adjustedPurchase)
     }
 
     @Test

@@ -853,6 +853,26 @@ fun ProductEditorScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            // Sell price next to purchase: default mode is MANUAL so this is the shelf price.
+                            NumberField(
+                                state.manualPrice,
+                                { v ->
+                                    vm.updateEditor {
+                                        it.copy(
+                                            manualPrice = v,
+                                            pricingMode = if (it.pricingMode != PricingModes.MANUAL && v.isNotBlank()) {
+                                                PricingModes.MANUAL
+                                            } else {
+                                                it.pricingMode
+                                            },
+                                        )
+                                    }
+                                },
+                                stringResource(R.string.sell_price),
+                                error = bad("manualPrice") ||
+                                    (state.pricingMode == PricingModes.MANUAL && err(ProductError.MANUAL_PRICE_REQUIRED)),
+                                supporting = stringResource(R.string.sell_price_on_create_help),
+                            )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(stringResource(R.string.dollar_linked), color = MaterialTheme.colorScheme.onSurface)
@@ -919,12 +939,23 @@ fun ProductEditorScreen(
                                 onSelect = { v -> vm.updateEditor { it.copy(formulaId = v) } },
                                 isError = err(ProductError.FORMULA_REQUIRED),
                             )
-                            PricingModes.MANUAL -> NumberField(
-                                state.manualPrice,
-                                { v -> vm.updateEditor { it.copy(manualPrice = v) } },
-                                stringResource(R.string.manual_price),
-                                error = bad("manualPrice") || err(ProductError.MANUAL_PRICE_REQUIRED),
-                            )
+                            PricingModes.MANUAL -> {
+                                if (showCosts) {
+                                    Text(
+                                        stringResource(R.string.sell_price_manual_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                } else {
+                                    NumberField(
+                                        state.manualPrice,
+                                        { v -> vm.updateEditor { it.copy(manualPrice = v) } },
+                                        stringResource(R.string.sell_price),
+                                        error = bad("manualPrice") || err(ProductError.MANUAL_PRICE_REQUIRED),
+                                        supporting = stringResource(R.string.sell_price_on_create_help),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
